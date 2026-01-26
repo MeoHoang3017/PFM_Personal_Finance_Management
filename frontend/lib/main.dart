@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:frontend/core/theme/theme.dart';
 import 'package:frontend/core/theme/theme_provider.dart';
+import 'package:frontend/features/auth/view/pages/sign_up_page.dart';
 import 'package:frontend/features/home/view/pages/home_page.dart';
 import 'package:provider/provider.dart';
 
@@ -26,7 +27,7 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightThemeMode,
       darkTheme: AppTheme.darkThemeMode,
       themeMode: themeProvider.themeMode,
-      home: const HomePage(),
+      home: const SignUpPage(),
     );
   }
 }
