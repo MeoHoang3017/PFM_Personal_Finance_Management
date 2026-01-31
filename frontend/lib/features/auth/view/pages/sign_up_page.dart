@@ -353,6 +353,67 @@ class _SignUpPageState extends State<SignUpPage> {
 
                   const SizedBox(height: 24),
 
+                  // Divider with OR
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Divider(
+                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'OR',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isDark
+                                ? PalleteLight.subtitleText
+                                : PalleteDark.subtitleText,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Divider(
+                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Google Sign Up Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        // Handle Google sign up
+                      },
+                      icon: const Icon(Icons.g_mobiledata, size: 28),
+                      label: const Text(
+                        'Continue with Google',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: isDark ? Colors.black87 : PalleteDark.whiteColor,
+                        side: BorderSide(
+                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
                   // Sign In Link
                   Center(
                     child: TextButton(
