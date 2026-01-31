@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:frontend/core/theme/app_pallete_dark.dart';
 import 'package:frontend/core/theme/app_pallete_light.dart';
 import 'package:frontend/core/theme/theme_provider.dart';
-import 'package:frontend/features/home/view/pages/home_page.dart';
+import 'package:frontend/features/get_started/views/pages/get_started_page.dart';
 import 'package:provider/provider.dart';
 
 class SplashPage extends StatefulWidget {
@@ -47,7 +47,7 @@ class _SplashPageState extends State<SplashPage> {
       context,
       MaterialPageRoute(
         builder: (BuildContext context) {
-          return const HomePage();
+          return const GetStartedPage();
         },
       ),
     );
