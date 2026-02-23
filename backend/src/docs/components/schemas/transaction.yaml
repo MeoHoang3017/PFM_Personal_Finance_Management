@@ -1,0 +1,88 @@
+Transaction:
+  type: object
+  properties:
+    id:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+    amount:
+      type: number
+      example: 100.50
+    type:
+      type: string
+      enum: [income, expense, transfer]
+      example: expense
+    category:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+    date:
+      type: string
+      format: date-time
+    description:
+      type: string
+      example: Grocery shopping
+    notes:
+      type: string
+      example: Weekly groceries
+    wallet:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+    user:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+CreateTransactionRequest:
+  type: object
+  required: [amount, type, category, date, wallet]
+  properties:
+    amount:
+      type: number
+      minimum: 0
+      example: 100.50
+    type:
+      type: string
+      enum: [income, expense, transfer]
+      example: expense
+    category:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+    date:
+      type: string
+      format: date-time
+      example: "2024-01-15T10:30:00Z"
+    description:
+      type: string
+      example: Grocery shopping
+    notes:
+      type: string
+      example: Weekly groceries
+    wallet:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+
+UpdateTransactionRequest:
+  type: object
+  properties:
+    amount:
+      type: number
+      minimum: 0
+    type:
+      type: string
+      enum: [income, expense, transfer]
+    category:
+      type: string
+    date:
+      type: string
+      format: date-time
+    description:
+      type: string
+    notes:
+      type: string
+    wallet:
+      type: string
+

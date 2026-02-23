@@ -1,0 +1,49 @@
+BaseResponse:
+  type: object
+  properties:
+    code:
+      type: integer
+      description: HTTP status code
+      example: 200
+    message:
+      type: string
+      description: Response message
+      example: Success
+    result:
+      type: object
+      nullable: true
+      description: Response data
+    error:
+      type: object
+      nullable: true
+      description: Error details
+
+Pagination:
+  type: object
+  properties:
+    page:
+      type: integer
+      example: 1
+    pageSize:
+      type: integer
+      example: 10
+    totalPages:
+      type: integer
+      example: 5
+    totalItems:
+      type: integer
+      example: 50
+
+Error:
+  type: object
+  properties:
+    code:
+      type: integer
+      example: 400
+    message:
+      type: string
+      example: Bad Request
+    error:
+      type: object
+      nullable: true
+

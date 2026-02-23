@@ -32,7 +32,7 @@ app.get("/", (req: express.Request, res: express.Response) => {
 // Swagger Documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCss: ".swagger-ui .topbar { display: none }",
-  customSiteTitle: "Caro Game API Documentation",
+  customSiteTitle: "Personal Finance Management API Documentation",
 }));
 
 // Swagger JSON endpoint

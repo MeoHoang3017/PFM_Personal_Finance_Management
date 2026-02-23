@@ -23,8 +23,11 @@ export const authenticateJWT = (
   next: NextFunction
 ): void => {
   try {
-    // 1. Lấy token trực tiếp từ req.cookies
-    const token = req.cookies?.accessToken;
+    // 1. Get token from cookies or Authorization Bearer header (for API clients)
+    let token = req.cookies?.accessToken;
+    if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+      token = req.headers.authorization.slice(7).trim();
+    }
 
     if (!token) {
       const ip = req.ip || req.socket.remoteAddress || 'unknown';
@@ -33,7 +36,7 @@ export const authenticateJWT = (
       
       res.status(401).json({
         success: false,
-        message: "Access token missing in cookies",
+        message: "Access token missing",
       });
       return;
     }
@@ -80,7 +83,10 @@ export const optionalAuth = (
   next: NextFunction
 ): void => {
   try {
-    const token = req.cookies?.accessToken;
+    let token = req.cookies?.accessToken;
+    if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+      token = req.headers.authorization.slice(7).trim();
+    }
 
     if (token) {
       try {

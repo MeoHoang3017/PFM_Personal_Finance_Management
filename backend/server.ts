@@ -25,6 +25,14 @@ server.listen(PORT, async () => {
   try {
     await connectDB();
     console.log("Connected to Database successfully.");
+    
+    // Start exchange rate scheduler
+    if (process.env.EXCHANGE_RATE_AUTO_UPDATE !== 'false') {
+      const { startExchangeRateScheduler } = await import("./src/utils/exchangeRate.scheduler");
+      startExchangeRateScheduler();
+    } else {
+      console.log("Exchange rate auto-update is disabled");
+    }
   } catch (error) {
     console.error("Failed to connect to Database", error);
   }
