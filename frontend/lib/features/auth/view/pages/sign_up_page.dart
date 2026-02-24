@@ -3,6 +3,7 @@ import 'package:frontend/core/theme/app_pallete_dark.dart';
 import 'package:frontend/core/theme/app_pallete_light.dart';
 import 'package:frontend/features/auth/view/pages/sign_in_page.dart';
 import 'package:frontend/features/get_started/views/pages/get_started_page.dart';
+import 'package:frontend/features/home/view/pages/home_page.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -323,11 +324,12 @@ class _SignUpPageState extends State<SignUpPage> {
                     height: 56,
                     child: ElevatedButton(
                       onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          // Handle sign up
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Creating account...'),
+                        if (!_formKey.currentState!.validate()) {
+                          // Navigate to HomePage
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HomePage(),
                             ),
                           );
                         }
@@ -346,67 +348,6 @@ class _SignUpPageState extends State<SignUpPage> {
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Divider with OR
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Divider(
-                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'OR',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: isDark
-                                ? PalleteLight.subtitleText
-                                : PalleteDark.subtitleText,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Divider(
-                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Google Sign Up Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        // Handle Google sign up
-                      },
-                      icon: const Icon(Icons.g_mobiledata, size: 28),
-                      label: const Text(
-                        'Continue with Google',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: isDark ? Colors.black87 : PalleteDark.whiteColor,
-                        side: BorderSide(
-                          color: isDark ? Colors.grey.shade300 : Colors.grey.shade700,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
                     ),

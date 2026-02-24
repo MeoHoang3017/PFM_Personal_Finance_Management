@@ -1,425 +1,351 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/core/theme/theme_provider.dart';
 import 'package:frontend/core/theme/app_pallete_dark.dart';
 import 'package:frontend/core/theme/app_pallete_light.dart';
-import 'package:provider/provider.dart';
 
-class HomePage extends StatelessWidget {
+class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  int _selectedIndex = 0;
+
+  // Mock data
+  final double totalBalance = 15750000; // 15,750,000 VND
+  final List<Map<String, dynamic>> wallets = [
+    {
+      'name': 'Ví tiền mặt',
+      'icon': Icons.account_balance_wallet,
+      'balance': 5000000,
+      'color': Colors.blue,
+    },
+    {
+      'name': 'Ngân hàng',
+      'icon': Icons.account_balance,
+      'balance': 10000000,
+      'color': Colors.green,
+    },
+    {
+      'name': 'Thẻ tín dụng',
+      'icon': Icons.credit_card,
+      'balance': 750000,
+      'color': Colors.orange,
+    },
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
-    final isDark = themeProvider.isDarkMode;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness != Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark
-          ? PalleteDark.backgroundColor
-          : PalleteLight.backgroundColor,
+      backgroundColor: isDark ? Colors.white : PalleteDark.backgroundColor,
       appBar: AppBar(
-        title: const Text('Personal Finance Manager'),
-        backgroundColor: isDark
-            ? PalleteDark.cardColor
-            : PalleteLight.cardColor,
+        backgroundColor: isDark ? Colors.white : PalleteDark.backgroundColor,
         elevation: 0,
+        title: Text(
+          'Tài chính của tôi',
+          style: TextStyle(
+            color: isDark ? Colors.black87 : PalleteDark.whiteColor,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
+        ),
         actions: [
           IconButton(
             icon: Icon(
-              isDark ? Icons.light_mode : Icons.dark_mode,
-              color: isDark ? Colors.amber : Colors.indigo,
+              Icons.notifications_outlined,
+              color: isDark ? Colors.black87 : PalleteDark.whiteColor,
             ),
-            onPressed: () {
-              themeProvider.toggleTheme();
-            },
-            tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: Icon(
+              Icons.settings_outlined,
+              color: isDark ? Colors.black87 : PalleteDark.whiteColor,
+            ),
+            onPressed: () {},
           ),
         ],
       ),
       body: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.symmetric(horizontal: 32.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Welcome Section
-              Card(
-                color: isDark ? PalleteDark.cardColor : PalleteLight.cardColor,
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    gradient: LinearGradient(
-                      colors: [
-                        isDark ? PalleteDark.gradient1 : PalleteLight.gradient1,
-                        isDark ? PalleteDark.gradient2 : PalleteLight.gradient2,
-                        isDark ? PalleteDark.gradient3 : PalleteLight.gradient3,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Welcome Back!',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Manage your finances with ease',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
               const SizedBox(height: 24),
 
-              // Theme Settings Section
-              Text(
-                'Theme Settings',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              Card(
-                color: isDark ? PalleteDark.cardColor : PalleteLight.cardColor,
-                elevation: 1,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: isDark
-                        ? PalleteDark.borderColor
-                        : PalleteLight.borderColor,
-                    width: 1,
-                  ),
+              // Tổng số dư Section
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.black : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    ListTile(
-                      leading: Icon(
-                        Icons.dark_mode,
-                        color: isDark ? Colors.white : Colors.black87,
-                      ),
-                      title: Text(
-                        'Dark Mode',
-                        style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black87,
-                        ),
-                      ),
-                      trailing: Switch(
-                        value: isDark,
-                        onChanged: (value) {
-                          themeProvider.toggleTheme();
-                        },
-                        activeColor: isDark
-                            ? PalleteDark.gradient1
-                            : PalleteLight.gradient1,
+                    Text(
+                      'Tổng số dư',
+                      style: TextStyle(
+                        color: isDark ? Colors.white70 : Colors.black54,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    Divider(
-                      height: 1,
-                      color: isDark
-                          ? PalleteDark.borderColor
-                          : PalleteLight.borderColor,
-                    ),
-                    ListTile(
-                      leading: Icon(
-                        Icons.light_mode,
+                    const SizedBox(height: 12),
+                    Text(
+                      '${totalBalance.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} đ',
+                      style: TextStyle(
                         color: isDark ? Colors.white : Colors.black87,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.5,
                       ),
-                      title: Text(
-                        'Light Mode',
-                        style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black87,
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _buildQuickAction(
+                          icon: Icons.add_circle_outline,
+                          label: 'Thu nhập',
+                          onTap: () {},
+                          isDark: isDark,
                         ),
-                      ),
-                      trailing: Switch(
-                        value: !isDark,
-                        onChanged: (value) {
-                          themeProvider.toggleTheme();
-                        },
-                        activeColor: isDark
-                            ? PalleteDark.gradient2
-                            : PalleteLight.gradient2,
-                      ),
+                        _buildQuickAction(
+                          icon: Icons.remove_circle_outline,
+                          label: 'Chi tiêu',
+                          onTap: () {},
+                          isDark: isDark,
+                        ),
+                        _buildQuickAction(
+                          icon: Icons.swap_horiz,
+                          label: 'Chuyển',
+                          onTap: () {},
+                          isDark: isDark,
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
 
-              // Current Theme Display
-              Text(
-                'Current Theme',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 40),
 
-              Card(
-                color: isDark ? PalleteDark.cardColor : PalleteLight.cardColor,
-                elevation: 1,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(
-                    color: isDark
-                        ? PalleteDark.borderColor
-                        : PalleteLight.borderColor,
-                    width: 1,
+              // Ví của tôi Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Ví của tôi',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.black87 : PalleteDark.whiteColor,
+                      letterSpacing: -0.5,
+                    ),
                   ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 50,
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: isDark
-                                  ? PalleteDark.backgroundColor
-                                  : PalleteLight.backgroundColor,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: isDark
-                                    ? PalleteDark.borderColor
-                                    : PalleteLight.borderColor,
-                                width: 2,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  isDark ? 'Dark Theme' : 'Light Theme',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: isDark
-                                        ? Colors.white
-                                        : Colors.black87,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  isDark
-                                      ? 'Perfect for low-light environments'
-                                      : 'Bright and clear for daytime use',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: isDark
-                                        ? PalleteDark.subtitleText
-                                        : PalleteLight.subtitleText,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                  TextButton(
+                    onPressed: () {},
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 0),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(
+                      'Xem tất cả',
+                      style: TextStyle(
+                        color: isDark ? Colors.black87 : Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
                       ),
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Theme Colors Preview',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              // Wallet List
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: wallets.length,
+                itemBuilder: (context, index) {
+                  final wallet = wallets[index];
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.grey[50] : PalleteDark.cardColor,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark ? Colors.grey[200]! : Colors.grey[800]!,
+                        width: 1,
+                      ),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      leading: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: wallet['color'].withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          wallet['icon'],
+                          color: wallet['color'],
+                          size: 24,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          _buildColorCircle(
-                            isDark
-                                ? PalleteDark.gradient1
-                                : PalleteLight.gradient1,
-                            'Primary',
-                          ),
-                          const SizedBox(width: 12),
-                          _buildColorCircle(
-                            isDark
-                                ? PalleteDark.gradient2
-                                : PalleteLight.gradient2,
-                            'Secondary',
-                          ),
-                          const SizedBox(width: 12),
-                          _buildColorCircle(
-                            isDark
-                                ? PalleteDark.gradient3
-                                : PalleteLight.gradient3,
-                            'Accent',
-                          ),
-                          const SizedBox(width: 12),
-                          _buildColorCircle(
-                            isDark
-                                ? PalleteDark.greenColor
-                                : PalleteLight.greenColor,
-                            'Success',
-                          ),
-                        ],
+                      title: Text(
+                        wallet['name'],
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: isDark
+                              ? Colors.black87
+                              : PalleteDark.whiteColor,
+                        ),
                       ),
-                    ],
-                  ),
-                ),
+                      subtitle: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          '${wallet['balance'].toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} đ',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: isDark
+                                ? PalleteLight.subtitleText
+                                : PalleteDark.subtitleText,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.arrow_forward_ios,
+                        size: 16,
+                        color: isDark
+                            ? PalleteLight.subtitleText
+                            : PalleteDark.subtitleText,
+                      ),
+                      onTap: () {},
+                    ),
+                  );
+                },
               ),
-              const SizedBox(height: 24),
 
-              // Quick Actions
-              Text(
-                'Quick Actions',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildActionCard(
-                      context,
-                      icon: Icons.add_circle_outline,
-                      title: 'Add Transaction',
-                      color: isDark
-                          ? PalleteDark.gradient1
-                          : PalleteLight.gradient1,
-                      isDark: isDark,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildActionCard(
-                      context,
-                      icon: Icons.analytics_outlined,
-                      title: 'View Analytics',
-                      color: isDark
-                          ? PalleteDark.gradient2
-                          : PalleteLight.gradient2,
-                      isDark: isDark,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildActionCard(
-                      context,
-                      icon: Icons.account_balance_wallet_outlined,
-                      title: 'Budget',
-                      color: isDark
-                          ? PalleteDark.gradient3
-                          : PalleteLight.gradient3,
-                      isDark: isDark,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _buildActionCard(
-                      context,
-                      icon: Icons.settings_outlined,
-                      title: 'Settings',
-                      color: isDark
-                          ? PalleteDark.greenColor
-                          : PalleteLight.greenColor,
-                      isDark: isDark,
-                    ),
-                  ),
-                ],
-              ),
+              const SizedBox(height: 32),
             ],
           ),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: isDark ? Colors.grey[200]! : Colors.grey[800]!,
+              width: 1,
+            ),
+          ),
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _selectedIndex,
+          onTap: _onItemTapped,
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: isDark ? Colors.white : PalleteDark.backgroundColor,
+          selectedItemColor: isDark ? Colors.black : Colors.white,
+          unselectedItemColor: isDark
+              ? PalleteLight.subtitleText
+              : PalleteDark.subtitleText,
+          selectedFontSize: 12,
+          unselectedFontSize: 12,
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
+          elevation: 0,
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined),
+              activeIcon: Icon(Icons.home),
+              label: 'Trang chủ',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.account_balance_wallet_outlined),
+              activeIcon: Icon(Icons.account_balance_wallet),
+              label: 'Giao dịch',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.add_circle_outline),
+              activeIcon: Icon(Icons.add_circle),
+              label: 'Thêm',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.bar_chart_outlined),
+              activeIcon: Icon(Icons.bar_chart),
+              label: 'Báo cáo',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline),
+              activeIcon: Icon(Icons.person),
+              label: 'Tài khoản',
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildColorCircle(Color color, String label) {
-    return Column(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(height: 4),
-        Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
-      ],
-    );
-  }
-
-  Widget _buildActionCard(
-    BuildContext context, {
+  Widget _buildQuickAction({
     required IconData icon,
-    required String title,
-    required Color color,
+    required String label,
+    required VoidCallback onTap,
     required bool isDark,
   }) {
-    return Card(
-      color: isDark ? PalleteDark.cardColor : PalleteLight.cardColor,
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(
-          color: isDark ? PalleteDark.borderColor : PalleteLight.borderColor,
-          width: 1,
-        ),
-      ),
-      child: InkWell(
-        onTap: () {
-          // Add action handler
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Icon(icon, size: 32, color: color),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-              ),
-            ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isDark ? Colors.grey[200] : Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              color: isDark ? Colors.black87 : Colors.white,
+              size: 20,
+            ),
           ),
-        ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: isDark ? Colors.black87 : Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
