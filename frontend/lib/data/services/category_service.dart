@@ -1,0 +1,48 @@
+import 'package:dio/dio.dart';
+
+import '../../core/api/api_client.dart';
+import '../../core/api/api_response.dart';
+import '../models/category_models.dart';
+
+class CategoryService {
+  final ApiClient _api;
+
+  CategoryService(this._api);
+
+  /// GET /categories - public/optional auth, trả về list categories
+  Future<ApiResponse<List<CategoryModel>>> getCategories() async {
+    try {
+      final res = await _api.dio.get('/categories');
+      final data = res.data as Map<String, dynamic>;
+      final result = data['result'];
+      if (result == null) return ApiResponse(code: data['code'] as int? ?? 200, message: data['message'] as String? ?? '', result: const []);
+      List<dynamic> list = result is List ? result : (result['data'] as List? ?? []);
+      final items = list.map((e) => CategoryModel.fromJson(e as Map<String, dynamic>)).toList();
+      return ApiResponse(code: data['code'] as int? ?? 200, message: data['message'] as String? ?? '', result: items);
+    } on DioException catch (e) {
+      return _error(e);
+    }
+  }
+
+  /// GET /categories/user/list - categories của user (sau khi đăng nhập)
+  Future<ApiResponse<List<CategoryModel>>> getUserCategories() async {
+    try {
+      final res = await _api.dio.get('/categories/user/list');
+      final data = res.data as Map<String, dynamic>;
+      final result = data['result'];
+      if (result == null) return ApiResponse(code: data['code'] as int? ?? 200, message: data['message'] as String? ?? '', result: const []);
+      List<dynamic> list = result is List ? result : (result['data'] as List? ?? []);
+      final items = list.map((e) => CategoryModel.fromJson(e as Map<String, dynamic>)).toList();
+      return ApiResponse(code: data['code'] as int? ?? 200, message: data['message'] as String? ?? '', result: items);
+    } on DioException catch (e) {
+      return _error(e);
+    }
+  }
+
+  ApiResponse<T> _error<T>(DioException e) {
+    final code = e.response?.statusCode ?? 500;
+    final data = e.response?.data;
+    final message = (data is Map && data['message'] != null) ? data['message'] as String : (e.message ?? 'Lỗi kết nối');
+    return ApiResponse(code: code, message: message, result: null);
+  }
+}
