@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
+import '../../../core/theme/theme_palette.dart';
+import '../../../core/utils/app_toast.dart';
 import '../../../data/models/auth_models.dart';
 import '../../../data/models/wallet_models.dart';
 import '../../../data/services/auth_service.dart';
@@ -64,7 +66,7 @@ class _WalletFormScreenState extends State<WalletFormScreen> {
         setState(() => _loading = false);
         if (res.isSuccess) {
           Navigator.pop(context, true);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã cập nhật ví')));
+          AppToast.showSuccess(context, 'Đã cập nhật ví');
         } else {
           setState(() => _errorMessage = res.message);
         }
@@ -74,7 +76,7 @@ class _WalletFormScreenState extends State<WalletFormScreen> {
         setState(() => _loading = false);
         if (res.isSuccess) {
           Navigator.pop(context, true);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã thêm ví')));
+          AppToast.showSuccess(context, 'Đã thêm ví');
         } else {
           setState(() => _errorMessage = res.message);
         }
@@ -89,14 +91,19 @@ class _WalletFormScreenState extends State<WalletFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final p = pfmPaletteOf(context);
     final isEdit = widget.wallet != null;
     return Scaffold(
+      backgroundColor: p.backgroundColor,
       appBar: AppBar(
-        title: Text(isEdit ? 'Sửa ví' : 'Thêm ví'),
+        title: Text(isEdit ? 'Sửa ví' : 'Thêm ví', style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600)),
+        backgroundColor: p.appBarBg,
+        elevation: 0,
+        foregroundColor: p.primaryText,
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           child: Form(
             key: _formKey,
             child: Column(
@@ -106,29 +113,30 @@ class _WalletFormScreenState extends State<WalletFormScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.errorContainer,
-                      borderRadius: BorderRadius.circular(8),
+                      color: p.errorColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(_errorMessage!, style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer)),
+                    child: Text(_errorMessage!, style: TextStyle(color: p.errorColor, fontSize: 13)),
                   ),
                   const SizedBox(height: 16),
                 ],
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Tên ví',
                     hintText: 'Ví tiền mặt, Ngân hàng...',
-                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.account_balance_wallet_outlined, color: p.iconMuted),
                   ),
                   validator: (v) => v == null || v.isEmpty ? 'Nhập tên ví' : null,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
                 TextFormField(
                   controller: _balanceController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Số dư hiện tại',
-                    border: OutlineInputBorder(),
+                    hintText: '0',
+                    prefixIcon: Icon(Icons.attach_money, color: p.iconMuted),
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Nhập số dư';
@@ -136,12 +144,20 @@ class _WalletFormScreenState extends State<WalletFormScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 24),
-                FilledButton(
-                  onPressed: _loading ? null : () {
-                    if (_formKey.currentState?.validate() ?? false) _save();
-                  },
-                  child: _loading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : Text(isEdit ? 'Cập nhật' : 'Thêm ví'),
+                const SizedBox(height: 28),
+                SizedBox(
+                  height: 52,
+                  child: FilledButton(
+                    onPressed: _loading
+                        ? null
+                        : () {
+                            if (_formKey.currentState?.validate() ?? false) _save();
+                          },
+                    style: FilledButton.styleFrom(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                    child: _loading
+                        ? SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary))
+                        : Text(isEdit ? 'Cập nhật' : 'Thêm ví', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  ),
                 ),
               ],
             ),

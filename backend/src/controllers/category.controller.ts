@@ -14,15 +14,14 @@ import { createError } from "../middleware/error.middleware";
 /**
  * List Categories
  */
+// GET /categories: luôn trả về danh mục hệ thống (user = null), dùng chung cho mọi user.
 export const listCategoriesController = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const userId = req.user?.id;
         const type = req.query.type as string;
         const page = parseInt(req.query.page as string) || 1;
         const pageSize = parseInt(req.query.pageSize as string) || 10;
 
         const filter: any = {};
-        if (userId) filter.user = userId;
         if (type) filter.type = type;
 
         const result = await listCategories(filter, page, pageSize);

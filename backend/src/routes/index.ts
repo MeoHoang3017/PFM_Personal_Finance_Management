@@ -14,6 +14,11 @@ import exchangeRateRoutes from "./exchangeRate.route";
 
 const router = Router();
 
+// Health check (không cần auth) - dùng để kiểm tra frontend kết nối backend
+router.get("/health", (req, res) => {
+  res.json({ ok: true, message: "API is running" });
+});
+
 // Mount route handlers
 router.use("/auth", authRoutes);
 router.use("/otp", otpRoutes);

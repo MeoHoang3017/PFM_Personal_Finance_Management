@@ -45,3 +45,50 @@ class CategoryModel {
     );
   }
 }
+
+class CreateCategoryData {
+  final String name;
+  final CategoryType type;
+  final String? parentCategory;
+  final String? user;
+  final String? icon;
+  final String? color;
+
+  CreateCategoryData({
+    required this.name,
+    required this.type,
+    this.parentCategory,
+    this.user,
+    this.icon,
+    this.color,
+  });
+
+  Map<String, dynamic> toJson() {
+    final m = <String, dynamic>{'name': name, 'type': type.value};
+    if (parentCategory != null) m['parentCategory'] = parentCategory;
+    if (user != null) m['user'] = user;
+    if (icon != null) m['icon'] = icon;
+    if (color != null) m['color'] = color;
+    return m;
+  }
+}
+
+class UpdateCategoryData {
+  final String? name;
+  final CategoryType? type;
+  final String? parentCategory;
+  final String? icon;
+  final String? color;
+
+  UpdateCategoryData({this.name, this.type, this.parentCategory, this.icon, this.color});
+
+  Map<String, dynamic> toJson() {
+    final m = <String, dynamic>{};
+    if (name != null) m['name'] = name;
+    if (type != null) m['type'] = type!.value;
+    if (parentCategory != null) m['parentCategory'] = parentCategory;
+    if (icon != null) m['icon'] = icon;
+    if (color != null) m['color'] = color;
+    return m;
+  }
+}

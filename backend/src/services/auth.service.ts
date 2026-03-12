@@ -1,99 +1,90 @@
-import { User } from "../models";
+import { User, Wallet } from "../models";
 import { hashPassword, isMatch } from "../utils/hasher";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../utils/jwt";
 import { sendOtpService, verifyOtpService, checkOtpVerifiedService, deleteOtpService } from "./otp.service";
 import { verifyGoogleToken } from "../config/googleLogin";
 import { RegisterData, LoginData, TokenResponse, ForgotPasswordData, ResetPasswordData, GoogleLoginData } from "../types/auth.type";
-import mongoose from "mongoose";
 
-//Register Service
+//Register Service (no transaction - compatible with standalone MongoDB)
 async function registerService(data: RegisterData): Promise<TokenResponse> {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    
-    try {
-        const { username, email, password, otp } = data;
+    const { username, email, password, otp } = data;
 
-        // Check if user already exists
-        const existingUser = await User.findOne({
-            $or: [{ email }, { username }]
-        }).session(session);
+    // Check if user already exists
+    const existingUser = await User.findOne({
+        $or: [{ email }, { username }]
+    });
 
-        if (existingUser) {
-            throw new Error(
-                existingUser.email === email 
-                    ? 'Email already registered' 
-                    : 'Username already taken'
-            );
-        }
-
-        // Check verification: if otp provided, verify inline; else ensure an already-verified OTP exists
-        if (otp) {
-            // verify inline and mark record as verified
-            await verifyOtpService(email, otp, 'register');
-        } else {
-            const isVerified = await checkOtpVerifiedService(email, 'register');
-            if (!isVerified) {
-                throw new Error('Email not verified');
-            }
-        }
-
-        // Hash password
-        const hashedPassword = await hashPassword(password);
-
-        // Create new user
-        const newUser = new User({
-            username,
-            email,
-            password: hashedPassword,
-            theme: 'light',
-            language: 'en',
-            currency: 'USD',
-            avatarUrl: '',
-        });
-
-        await newUser.save({ session });
-
-        await session.commitTransaction();
-
-        // Optional: cleanup OTP record for this email+type (after transaction commit)
-        // This is safe to do outside transaction as it's just cleanup
-        try {
-            await deleteOtpService(email, 'register');
-        } catch (error) {
-            // Ignore OTP cleanup errors as user is already created
-            console.warn('Failed to cleanup OTP after registration:', error);
-        }
-
-        // Generate tokens (outside transaction as they don't need DB consistency)
-        const accessToken = generateAccessToken({
-            id: newUser._id.toString(),
-            isGuest: false,
-        });
-        const refreshToken = generateRefreshToken({
-            id: newUser._id.toString(),
-            isGuest: false,
-        });
-
-        return {
-            accessToken,
-            refreshToken,
-            user: {
-                id: newUser._id.toString(),
-                username: newUser.username,
-                email: newUser.email,
-                theme: newUser.theme,
-                language: newUser.language,
-                currency: newUser.currency,
-                avatarUrl: newUser.avatarUrl,
-            },
-        };
-    } catch (error) {
-        await session.abortTransaction();
-        throw error;
-    } finally {
-        session.endSession();
+    if (existingUser) {
+        throw new Error(
+            existingUser.email === email
+                ? 'Email already registered'
+                : 'Username already taken'
+        );
     }
+
+    // Check verification: if otp provided, verify inline; else ensure an already-verified OTP exists
+    if (otp) {
+        await verifyOtpService(email, otp, 'register');
+    } else {
+        const isVerified = await checkOtpVerifiedService(email, 'register');
+        if (!isVerified) {
+            throw new Error('Email not verified');
+        }
+    }
+
+    // Hash password
+    const hashedPassword = await hashPassword(password);
+
+    // Create new user
+    const newUser = new User({
+        username,
+        email,
+        password: hashedPassword,
+        theme: 'light',
+        language: 'en',
+        currency: 'USD',
+        avatarUrl: '',
+    });
+
+    await newUser.save();
+
+    // Tạo ví mặc định cho tài khoản mới
+    const defaultWallet = new Wallet({
+        name: 'Ví mặc định',
+        balance: 0,
+        user: newUser._id,
+    });
+    await defaultWallet.save();
+
+    // Cleanup OTP record for this email+type
+    try {
+        await deleteOtpService(email, 'register');
+    } catch (error) {
+        console.warn('Failed to cleanup OTP after registration:', error);
+    }
+
+    const accessToken = generateAccessToken({
+        id: newUser._id.toString(),
+        isGuest: false,
+    });
+    const refreshToken = generateRefreshToken({
+        id: newUser._id.toString(),
+        isGuest: false,
+    });
+
+    return {
+        accessToken,
+        refreshToken,
+        user: {
+            id: newUser._id.toString(),
+            username: newUser.username,
+            email: newUser.email,
+            theme: newUser.theme,
+            language: newUser.language,
+            currency: newUser.currency,
+            avatarUrl: newUser.avatarUrl,
+        },
+    };
 }
 
 //Login Service
@@ -217,182 +208,139 @@ async function forgotPasswordService(data: ForgotPasswordData): Promise<{ messag
     }
 }
 
-// Reset Password Service - Verify OTP and reset password
+// Reset Password Service - Verify OTP and reset password (no transaction - standalone MongoDB)
 async function resetPasswordService(data: ResetPasswordData): Promise<{ message: string }> {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    
-    try {
-        const { email, otp, newPassword } = data;
-        
-        // Check if user exists
-        const user = await User.findOne({ email }).session(session);
-        if (!user) {
-            throw new Error('User not found');
-        }
-        
-        // Check if user has Google authentication
-        if (user.googleId) {
-            throw new Error('Password reset not available for Google authenticated accounts');
-        }
-        
-        // Verify OTP
-        await verifyOtpService(email, otp, 'forgot-password');
-        
-        // Hash new password
-        const hashedPassword = await hashPassword(newPassword);
-        
-        // Update password
-        user.password = hashedPassword;
-        await user.save({ session });
-        
-        await session.commitTransaction();
-        
-        // Cleanup OTP (after transaction commit)
-        // This is safe to do outside transaction as it's just cleanup
-        try {
-            await deleteOtpService(email, 'forgot-password');
-        } catch (error) {
-            // Ignore OTP cleanup errors as password is already reset
-            console.warn('Failed to cleanup OTP after password reset:', error);
-        }
-        return { message: 'Password reset successfully' };
-    } catch (error) {
-        await session.abortTransaction();
-        throw error;
-    } finally {
-        session.endSession();
+    const { email, otp, newPassword } = data;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+        throw new Error('User not found');
     }
+
+    if (user.googleId) {
+        throw new Error('Password reset not available for Google authenticated accounts');
+    }
+
+    await verifyOtpService(email, otp, 'forgot-password');
+
+    const hashedPassword = await hashPassword(newPassword);
+    user.password = hashedPassword;
+    await user.save();
+
+    try {
+        await deleteOtpService(email, 'forgot-password');
+    } catch (error) {
+        console.warn('Failed to cleanup OTP after password reset:', error);
+    }
+    return { message: 'Password reset successfully' };
 }
 
-// Login with Google Service
+// Login with Google Service (no transaction - standalone MongoDB)
 async function loginWithGoogleService(data: GoogleLoginData): Promise<TokenResponse> {
-    const session = await mongoose.startSession();
-    session.startTransaction();
-    
-    try {
-        const { idToken } = data;
+    const { idToken } = data;
 
-        if (!idToken) {
-            throw new Error('Google ID token is required');
+    if (!idToken) {
+        throw new Error('Google ID token is required');
+    }
+
+    const googleUser = await verifyGoogleToken(idToken);
+
+    if (!googleUser.email) {
+        throw new Error('Email not found in Google account');
+    }
+
+    const userEmail: string = googleUser.email!;
+
+    let user = await User.findOne({
+        $or: [
+            { email: userEmail },
+            { googleId: googleUser.sub }
+        ]
+    });
+
+    if (user) {
+        if (!user.googleId) {
+            user.googleId = googleUser.sub;
         }
-
-        // Verify Google token
-        const googleUser = await verifyGoogleToken(idToken);
-
-        if (!googleUser.email) {
-            throw new Error('Email not found in Google account');
+        if (googleUser.picture && !user.avatarUrl) {
+            user.avatarUrl = googleUser.picture;
         }
-
-        // Type assertion: email is guaranteed to be string after check above
-        const userEmail: string = googleUser.email!;
-
-        // Check if user already exists by email or googleId
-        let user = await User.findOne({
-            $or: [
-                { email: userEmail },
-                { googleId: googleUser.sub }
-            ]
-        }).session(session);
-
-        if (user) {
-            // User exists - update googleId if not set
-            if (!user.googleId) {
-                user.googleId = googleUser.sub;
-            }
-            
-            // Update avatar if available and not set
-            if (googleUser.picture && !user.avatarUrl) {
-                user.avatarUrl = googleUser.picture;
-            }
-            
-            // Update username if not set (use name from Google)
-            if (!user.username && googleUser.name) {
-                // Generate username from email or name
-                const baseUsername = googleUser.name.toLowerCase().replace(/\s+/g, '_');
-                let username: string = baseUsername;
-                let counter = 1;
-                
-                // Ensure username is unique
-                let existingUserWithUsername = await User.findOne({ username, _id: { $ne: user._id } }).session(session);
-                while (existingUserWithUsername) {
-                    username = `${baseUsername}${counter}`;
-                    counter++;
-                    existingUserWithUsername = await User.findOne({ username, _id: { $ne: user._id } }).session(session);
-                }
-                
-                user.username = username;
-            }
-            
-            await user.save({ session });
-        } else {
-            // New user - create account
-            // Generate unique username from email or name
-            const nameValue: string | undefined = googleUser.name;
-            let baseUsername: string;
-            if (nameValue && typeof nameValue === 'string' && nameValue.trim().length > 0) {
-                baseUsername = nameValue.toLowerCase().replace(/\s+/g, '_');
-            } else {
-                const emailParts = userEmail.split('@');
-                baseUsername = emailParts[0] || userEmail;
-            }
-            
+        if (!user.username && googleUser.name) {
+            const baseUsername = googleUser.name.toLowerCase().replace(/\s+/g, '_');
             let username: string = baseUsername;
             let counter = 1;
-            
-            // Ensure username is unique
-            let existingUser = await User.findOne({ username }).session(session);
-            while (existingUser) {
+            let existingUserWithUsername = await User.findOne({ username, _id: { $ne: user._id } });
+            while (existingUserWithUsername) {
                 username = `${baseUsername}${counter}`;
                 counter++;
-                existingUser = await User.findOne({ username }).session(session);
+                existingUserWithUsername = await User.findOne({ username, _id: { $ne: user._id } });
             }
-
-            user = new User({
-                username,
-                email: userEmail,
-                googleId: googleUser.sub,
-                password: undefined, // No password for Google users
-                theme: 'light',
-                language: 'en',
-                currency: 'USD',
-                avatarUrl: googleUser.picture || '',
-            });
-
-            await user.save({ session });
+            user.username = username;
+        }
+        await user.save();
+    } else {
+        const nameValue: string | undefined = googleUser.name;
+        let baseUsername: string;
+        if (nameValue && typeof nameValue === 'string' && nameValue.trim().length > 0) {
+            baseUsername = nameValue.toLowerCase().replace(/\s+/g, '_');
+        } else {
+            const emailParts = userEmail.split('@');
+            baseUsername = emailParts[0] || userEmail;
         }
 
-        await session.commitTransaction();
+        let username: string = baseUsername;
+        let counter = 1;
+        let existingUser = await User.findOne({ username });
+        while (existingUser) {
+            username = `${baseUsername}${counter}`;
+            counter++;
+            existingUser = await User.findOne({ username });
+        }
 
-        // Generate tokens
-        const accessToken = generateAccessToken({
-            id: user._id.toString(),
-            isGuest: false,
-        });
-        const refreshToken = generateRefreshToken({
-            id: user._id.toString(),
-            isGuest: false,
+        user = new User({
+            username,
+            email: userEmail,
+            googleId: googleUser.sub,
+            password: undefined,
+            theme: 'light',
+            language: 'en',
+            currency: 'USD',
+            avatarUrl: googleUser.picture || '',
         });
 
-        return {
-            accessToken,
-            refreshToken,
-            user: {
-                id: user._id.toString(),
-                username: user.username,
-                email: user.email,
-                theme: user.theme,
-                language: user.language,
-                currency: user.currency,
-                avatarUrl: user.avatarUrl,
-            },
-        };
-    } catch (error: any) {
-        await session.abortTransaction();
-        throw error;
-    } finally {
-        session.endSession();
+        await user.save();
+
+        // Tạo ví mặc định cho user đăng ký qua Google
+        const defaultWallet = new Wallet({
+            name: 'Ví mặc định',
+            balance: 0,
+            user: user._id,
+        });
+        await defaultWallet.save();
     }
+
+    const accessToken = generateAccessToken({
+        id: user._id.toString(),
+        isGuest: false,
+    });
+    const refreshToken = generateRefreshToken({
+        id: user._id.toString(),
+        isGuest: false,
+    });
+
+    return {
+        accessToken,
+        refreshToken,
+        user: {
+            id: user._id.toString(),
+            username: user.username,
+            email: user.email,
+            theme: user.theme,
+            language: user.language,
+            currency: user.currency,
+            avatarUrl: user.avatarUrl,
+        },
+    };
 }
 
 export { 

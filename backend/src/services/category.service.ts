@@ -3,14 +3,21 @@ import { CreateCategoryData, UpdateCategoryData, CategoryResponse, PaginatedCate
 import { paginate } from "../utils/pagination";
 import mongoose from "mongoose";
 
-// List categories with pagination (optionally by user and/or type)
+// List categories with pagination.
+// Khi không có userId: chỉ trả về danh mục hệ thống (user = null), dùng chung cho mọi user.
+// Khi có userId: trả về danh mục của user đó (dùng cho filter nội bộ).
 export async function listCategories(
   filter: { user?: string; type?: string } = {},
   page: number = 1,
   pageSize: number = 10
 ): Promise<PaginatedCategoriesResponse> {
   const query: any = {};
-  if (filter.user) query.user = filter.user;
+  if (filter.user) {
+    query.user = filter.user;
+  } else {
+    // Public list: chỉ danh mục hệ thống (user null)
+    query.user = null;
+  }
   if (filter.type) query.type = filter.type;
 
   const skip = (page - 1) * pageSize;
@@ -36,16 +43,17 @@ export async function listCategories(
   return paginate(formattedCats, page, pageSize, totalItems);
 }
 
-//List categories by user with pagination
+// List categories by user with pagination: danh mục hệ thống (user null) + danh mục của user.
 export async function listCategoriesByUser(
   userId: string,
   page: number = 1,
   pageSize: number = 10
 ): Promise<PaginatedCategoriesResponse> {
+  const query = { $or: [{ user: null }, { user: new mongoose.Types.ObjectId(userId) }] };
   const skip = (page - 1) * pageSize;
-  const totalItems = await Category.countDocuments({ user: userId });
+  const totalItems = await Category.countDocuments(query);
   
-  const cats = await Category.find({ user: userId })
+  const cats = await Category.find(query)
     .skip(skip)
     .limit(pageSize)
     .lean();
@@ -112,8 +120,14 @@ export async function getCategoryById(id: string): Promise<CategoryResponse | nu
 
 
 
-// Update category
+// Update category (không cho sửa danh mục hệ thống user = null)
 export async function updateCategory(id: string, payload: UpdateCategoryData): Promise<CategoryResponse | null> {
+  const existing = await Category.findById(id).lean();
+  if (!existing) return null;
+  if (existing.user == null) {
+    throw new Error("Cannot update system category");
+  }
+
   const update: any = {};
   if (payload.name !== undefined) update.name = payload.name;
   if (payload.type !== undefined) update.type = payload.type;
@@ -137,8 +151,13 @@ export async function updateCategory(id: string, payload: UpdateCategoryData): P
   };
 }
 
-// Delete category
+// Delete category (không cho xóa danh mục hệ thống user = null)
 export async function deleteCategory(id: string): Promise<{ deleted: boolean }> {
+  const existing = await Category.findById(id).lean();
+  if (!existing) return { deleted: false };
+  if (existing.user == null) {
+    throw new Error("Cannot delete system category");
+  }
   const res = await Category.findByIdAndDelete(id);
   return { deleted: !!res };
 }

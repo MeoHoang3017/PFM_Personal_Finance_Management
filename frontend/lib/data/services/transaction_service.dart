@@ -85,6 +85,25 @@ class TransactionService {
       await _api.dio.delete('/transactions/$id');
       return ApiResponse(code: 200, message: 'OK', result: null);
     } on DioException catch (e) {
+      final code = e.response?.statusCode ?? 500;
+      final data = e.response?.data;
+      final message = (data is Map && data['message'] != null) ? data['message'] as String : (e.message ?? 'Lỗi kết nối');
+      return ApiResponse(code: code, message: message, result: null);
+    }
+  }
+
+  Future<ApiResponse<TransactionModel>> duplicateTransaction(String id) async {
+    try {
+      final res = await _api.dio.post('/transactions/$id/duplicate');
+      final data = res.data as Map<String, dynamic>;
+      final result = data['result'];
+      if (result == null) return ApiResponse(code: data['code'] as int? ?? 201, message: data['message'] as String? ?? '', result: null as TransactionModel);
+      return ApiResponse(
+        code: data['code'] as int? ?? 201,
+        message: data['message'] as String? ?? '',
+        result: TransactionModel.fromJson(result as Map<String, dynamic>),
+      );
+    } on DioException catch (e) {
       return _error(e);
     }
   }

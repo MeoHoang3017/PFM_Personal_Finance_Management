@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:toastification/toastification.dart';
 
 import 'core/di/injection.dart';
 import 'core/router/app_router.dart';
+import 'core/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,17 +16,15 @@ class PfmApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Quản lý tài chính',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal, brightness: Brightness.light),
-        useMaterial3: true,
+    return ToastificationWrapper(
+      child: MaterialApp.router(
+        title: 'Quản lý tài chính',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        darkTheme: AppTheme.darkTheme,
+        themeMode: ThemeMode.system,
+        routerConfig: createAppRouter(),
       ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal, brightness: Brightness.dark),
-        useMaterial3: true,
-      ),
-      routerConfig: createAppRouter(),
     );
   }
 }

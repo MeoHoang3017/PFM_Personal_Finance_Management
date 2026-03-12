@@ -39,6 +39,50 @@ class CategoryService {
     }
   }
 
+  Future<ApiResponse<CategoryModel>> createCategory(CreateCategoryData body) async {
+    try {
+      final res = await _api.dio.post('/categories', data: body.toJson());
+      final data = res.data as Map<String, dynamic>;
+      final result = data['result'];
+      if (result == null) return ApiResponse(code: data['code'] as int? ?? 201, message: data['message'] as String? ?? '', result: null as CategoryModel);
+      return ApiResponse(
+        code: data['code'] as int? ?? 201,
+        message: data['message'] as String? ?? '',
+        result: CategoryModel.fromJson(result as Map<String, dynamic>),
+      );
+    } on DioException catch (e) {
+      return _error(e);
+    }
+  }
+
+  Future<ApiResponse<CategoryModel>> updateCategory(String id, UpdateCategoryData body) async {
+    try {
+      final res = await _api.dio.put('/categories/$id', data: body.toJson());
+      final data = res.data as Map<String, dynamic>;
+      final result = data['result'];
+      if (result == null) return ApiResponse(code: data['code'] as int? ?? 200, message: data['message'] as String? ?? '', result: null as CategoryModel);
+      return ApiResponse(
+        code: data['code'] as int? ?? 200,
+        message: data['message'] as String? ?? '',
+        result: CategoryModel.fromJson(result as Map<String, dynamic>),
+      );
+    } on DioException catch (e) {
+      return _error(e);
+    }
+  }
+
+  Future<ApiResponse<void>> deleteCategory(String id) async {
+    try {
+      await _api.dio.delete('/categories/$id');
+      return ApiResponse(code: 200, message: 'OK', result: null);
+    } on DioException catch (e) {
+      final code = e.response?.statusCode ?? 500;
+      final data = e.response?.data;
+      final message = (data is Map && data['message'] != null) ? data['message'] as String : (e.message ?? 'Lỗi kết nối');
+      return ApiResponse(code: code, message: message, result: null);
+    }
+  }
+
   ApiResponse<T> _error<T>(DioException e) {
     final code = e.response?.statusCode ?? 500;
     final data = e.response?.data;

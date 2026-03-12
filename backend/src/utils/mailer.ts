@@ -5,19 +5,27 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 /**
- * Configure Transporter with OAuth2 for Gmail
- * This replaces the Hostinger/SMTP password setup
+ * Transporter using Gmail app password instead of OAuth2
+ * Previous OAuth2-based configuration is intentionally disabled to avoid invalid_grant errors.
  */
+// const oauth2Transporter = nodemailer.createTransport({
+//   service: 'gmail',
+//   auth: {
+//     type: 'OAuth2',
+//     user: process.env.EMAIL_USER,
+//     clientId: process.env.OAUTH_CLIENT_ID,
+//     clientSecret: process.env.OAUTH_CLIENT_SECRET,
+//     refreshToken: process.env.OAUTH_REFRESH_TOKEN,
+//   },
+// } as any);
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    type: 'OAuth2',
     user: process.env.EMAIL_USER,
-    clientId: process.env.OAUTH_CLIENT_ID,
-    clientSecret: process.env.OAUTH_CLIENT_SECRET,
-    refreshToken: process.env.OAUTH_REFRESH_TOKEN,
+    pass: process.env.EMAIL_APP_PASSWORD,
   },
-} as any); // "as any" is used because types for OAuth2 in nodemailer can be strict
+});
 
 /**
  * Send a general email

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
+import '../../../core/utils/app_toast.dart';
 import '../../../data/models/auth_models.dart';
 import '../../../data/models/category_models.dart';
 import '../../../data/models/transaction_models.dart';
@@ -164,7 +165,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
         setState(() => _loading = false);
         if (res.isSuccess) {
           Navigator.pop(context, true);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã thêm giao dịch')));
+          AppToast.showSuccess(context, 'Đã thêm giao dịch');
         } else {
           setState(() => _errorMessage = res.message);
         }

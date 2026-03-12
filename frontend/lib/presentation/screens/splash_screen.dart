@@ -26,29 +26,26 @@ class _SplashScreenState extends State<SplashScreen> {
     if (token != null && token.isNotEmpty) {
       context.go('/home');
     } else {
-      context.go('/login');
+      context.go('/get-started');
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
+      backgroundColor: isDark
+          ? const Color(0xFF0F172A)
+          : const Color(0xFFF1F5F9),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.account_balance_wallet, size: 80, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 24),
-            Text(
-              'PFM',
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-            ),
-            const SizedBox(height: 48),
-            const CircularProgressIndicator(),
-          ],
+        child: Text(
+          'Quản lý tài chính',
+          style: TextStyle(
+            fontSize: 40,
+            fontWeight: FontWeight.bold,
+            fontStyle: FontStyle.italic,
+            color: isDark ? Colors.white : Colors.black,
+          ),
         ),
       ),
     );

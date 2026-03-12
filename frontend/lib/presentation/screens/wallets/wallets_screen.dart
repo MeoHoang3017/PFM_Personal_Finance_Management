@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
+import '../../../core/theme/theme_palette.dart';
+import '../../../core/utils/app_toast.dart';
 import '../../../data/models/wallet_models.dart';
 import '../../../data/services/wallet_service.dart';
+import '../../widgets/section_card.dart';
 import 'wallet_form_screen.dart';
 
 class WalletsScreen extends StatefulWidget {
@@ -75,83 +78,121 @@ class _WalletsScreenState extends State<WalletsScreen> {
     if (mounted) {
       if (res.isSuccess) {
         _load();
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã xóa ví')));
+        AppToast.showSuccess(context, 'Đã xóa ví');
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res.message)));
+        AppToast.showError(context, res.message);
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final p = pfmPaletteOf(context);
     return Scaffold(
+      backgroundColor: p.backgroundColor,
       appBar: AppBar(
-        title: const Text('Ví'),
+        title: Text('Ví', style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600)),
+        backgroundColor: p.appBarBg,
+        elevation: 0,
+        foregroundColor: p.primaryText,
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loading ? null : _load),
+          IconButton(
+            icon: Icon(Icons.refresh, color: p.iconMuted),
+            onPressed: _loading ? null : _load,
+          ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                      const SizedBox(height: 16),
-                      FilledButton(onPressed: _load, child: const Text('Thử lại')),
-                    ],
-                  ),
-                )
-              : _wallets.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.account_balance_wallet_outlined, size: 64, color: Theme.of(context).colorScheme.outline),
-                          const SizedBox(height: 16),
-                          Text('Chưa có ví nào', style: Theme.of(context).textTheme.titleMedium),
-                          const SizedBox(height: 8),
-                          FilledButton.icon(
-                            onPressed: () => _openForm(),
-                            icon: const Icon(Icons.add),
-                            label: const Text('Thêm ví'),
-                          ),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: _load,
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: _wallets.length,
-                        itemBuilder: (context, index) {
-                          final w = _wallets[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            child: ListTile(
-                              title: Text(w.name),
-                              subtitle: Text('${w.balance.toStringAsFixed(0)} ₫'),
-                              trailing: PopupMenuButton<String>(
-                                onSelected: (v) {
-                                  if (v == 'edit') _openForm(w);
-                                  if (v == 'delete') _confirmDelete(w);
-                                },
-                                itemBuilder: (ctx) => [
-                                  const PopupMenuItem(value: 'edit', child: Text('Sửa')),
-                                  const PopupMenuItem(value: 'delete', child: Text('Xóa')),
-                                ],
-                              ),
-                              onTap: () => _openForm(w),
+      body: Column(
+        children: [
+          Container(
+            height: 3,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [p.primaryAction, p.expenseColor],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+            ),
+          ),
+          Expanded(
+            child: _loading
+                ? Center(child: CircularProgressIndicator(color: p.primaryAction))
+                : _error != null
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(_error!, style: TextStyle(color: p.errorColor), textAlign: TextAlign.center),
+                            const SizedBox(height: 16),
+                            FilledButton(onPressed: _load, child: const Text('Thử lại')),
+                          ],
+                        ),
+                      )
+                    : _wallets.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.account_balance_wallet_outlined, size: 64, color: p.iconMuted),
+                                const SizedBox(height: 16),
+                                Text('Chưa có ví nào', style: TextStyle(color: p.primaryText, fontSize: 16, fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 8),
+                                FilledButton.icon(
+                                  onPressed: () => _openForm(),
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Thêm ví'),
+                                ),
+                              ],
                             ),
-                          );
-                        },
-                      ),
-                    ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: _load,
+                            color: p.primaryAction,
+                            child: ListView.builder(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              itemCount: _wallets.length,
+                              itemBuilder: (context, index) {
+                                final w = _wallets[index];
+                                return SectionCard(
+                                  padding: EdgeInsets.zero,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      ListTile(
+                                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                        leading: CircleAvatar(
+                                          radius: 22,
+                                          backgroundColor: p.primaryAction.withValues(alpha: 0.2),
+                                          child: Icon(Icons.account_balance_wallet_outlined, color: p.primaryAction, size: 20),
+                                        ),
+                                        title: Text(w.name, style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w500)),
+                                        subtitle: Text('${w.balance.toStringAsFixed(0)} ₫', style: TextStyle(color: p.subtitleText, fontSize: 13)),
+                                        trailing: PopupMenuButton<String>(
+                                          icon: Icon(Icons.more_vert, color: p.iconMuted),
+                                          onSelected: (v) {
+                                            if (v == 'edit') _openForm(w);
+                                            if (v == 'delete') _confirmDelete(w);
+                                          },
+                                          itemBuilder: (ctx) => [
+                                            const PopupMenuItem(value: 'edit', child: Text('Sửa')),
+                                            const PopupMenuItem(value: 'delete', child: Text('Xóa')),
+                                          ],
+                                        ),
+                                        onTap: () => _openForm(w),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+          ),
+        ],
+      ),
       floatingActionButton: _wallets.isNotEmpty
           ? FloatingActionButton(
               onPressed: () => _openForm(),
+              backgroundColor: p.primaryAction,
               child: const Icon(Icons.add),
             )
           : null,

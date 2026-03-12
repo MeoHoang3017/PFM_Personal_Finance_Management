@@ -12,7 +12,7 @@ const app = express();
 // Security: Helmet - Set security headers
 app.use(helmetConfig);
 
-// Security: CORS - Configure CORS với whitelist từ .env
+// Security: CORS - Whitelist từ CLIENT_URL trong .env
 app.use(cors(corsOptions));
 
 // Body parser với giới hạn kích thước

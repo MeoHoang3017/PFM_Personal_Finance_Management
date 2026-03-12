@@ -82,6 +82,38 @@ class UpdateProfileData {
   }
 }
 
+class UpdateUserSettingsData {
+  final String? theme;
+  final String? language;
+  final String? currency;
+  final String? avatarUrl;
+  final String? moneyFormat;
+  final bool? dailyReminder;
+  final String? reminderTime;
+
+  UpdateUserSettingsData({
+    this.theme,
+    this.language,
+    this.currency,
+    this.avatarUrl,
+    this.moneyFormat,
+    this.dailyReminder,
+    this.reminderTime,
+  });
+
+  Map<String, dynamic> toJson() {
+    final m = <String, dynamic>{};
+    if (theme != null) m['theme'] = theme;
+    if (language != null) m['language'] = language;
+    if (currency != null) m['currency'] = currency;
+    if (avatarUrl != null) m['avatarUrl'] = avatarUrl;
+    if (moneyFormat != null) m['moneyFormat'] = moneyFormat;
+    if (dailyReminder != null) m['dailyReminder'] = dailyReminder;
+    if (reminderTime != null) m['reminderTime'] = reminderTime;
+    return m;
+  }
+}
+
 class PaginatedUsersResponse {
   final List<UserProfile> data;
   final Pagination pagination;
