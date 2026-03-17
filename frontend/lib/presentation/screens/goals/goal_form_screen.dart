@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
@@ -78,7 +79,7 @@ class _GoalFormScreenState extends State<GoalFormScreen> {
         setState(() => _loading = false);
         if (res.isSuccess) {
           Navigator.pop(context, true);
-          AppToast.showSuccess(context, 'Đã cập nhật mục tiêu');
+          AppToast.showSuccess(context, 'goal_updated'.tr());
         } else {
           setState(() => _errorMessage = res.message);
         }
@@ -94,7 +95,7 @@ class _GoalFormScreenState extends State<GoalFormScreen> {
         setState(() => _loading = false);
         if (res.isSuccess) {
           Navigator.pop(context, true);
-          AppToast.showSuccess(context, 'Đã thêm mục tiêu');
+          AppToast.showSuccess(context, 'goal_added'.tr());
         } else {
           setState(() => _errorMessage = res.message);
         }
@@ -112,7 +113,7 @@ class _GoalFormScreenState extends State<GoalFormScreen> {
     final isEdit = widget.goal != null;
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEdit ? 'Sửa mục tiêu' : 'Thêm mục tiêu'),
+        title: Text(isEdit ? 'edit_goal'.tr() : 'add_goal'.tr()),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -135,24 +136,24 @@ class _GoalFormScreenState extends State<GoalFormScreen> {
                 ],
                 TextFormField(
                   controller: _titleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Tên mục tiêu',
-                    hintText: 'Mua xe, Du lịch...',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: 'goal_title'.tr(),
+                    hintText: 'goal_title_hint'.tr(),
+                    border: const OutlineInputBorder(),
                   ),
-                  validator: (v) => v == null || v.isEmpty ? 'Nhập tên mục tiêu' : null,
+                  validator: (v) => v == null || v.isEmpty ? 'goal_title'.tr() : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _targetController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Số tiền mục tiêu',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: 'goal_target_amount'.tr(),
+                    border: const OutlineInputBorder(),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Nhập số tiền';
-                    if (double.tryParse(v.replaceAll(',', '')) == null) return 'Số không hợp lệ';
+                    if (v == null || v.isEmpty) return 'hint_amount'.tr();
+                    if (double.tryParse(v.replaceAll(',', '')) == null) return 'invalid_number'.tr();
                     return null;
                   },
                 ),
@@ -160,14 +161,14 @@ class _GoalFormScreenState extends State<GoalFormScreen> {
                 TextFormField(
                   controller: _currentController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Đã tiết kiệm',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: 'goal_saved'.tr(),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
                 ListTile(
-                  title: const Text('Hạn đến'),
+                  title: Text('due_date'.tr()),
                   subtitle: Text('${_dueDate.day}/${_dueDate.month}/${_dueDate.year}'),
                   trailing: const Icon(Icons.calendar_today),
                   onTap: () async {

@@ -22,7 +22,10 @@ class TransactionModel {
   final String id;
   final double amount;
   final TransactionType type;
+  /// Category id (from API).
   final String category;
+  /// Category name for display (populated from API when available).
+  final String? categoryName;
   final DateTime date;
   final String description;
   final String notes;
@@ -36,6 +39,7 @@ class TransactionModel {
     required this.amount,
     required this.type,
     required this.category,
+    this.categoryName,
     required this.date,
     this.description = '',
     this.notes = '',
@@ -45,12 +49,16 @@ class TransactionModel {
     this.updatedAt,
   });
 
+  /// Display label: categoryName if present, otherwise category (id).
+  String get categoryDisplay => (categoryName != null && categoryName!.isNotEmpty) ? categoryName! : (category.isEmpty ? '' : category);
+
   factory TransactionModel.fromJson(Map<String, dynamic> json) {
     return TransactionModel(
       id: json['id'] as String? ?? '',
       amount: (json['amount'] as num?)?.toDouble() ?? 0,
       type: TransactionTypeExt.fromString(json['type'] as String?),
       category: json['category'] as String? ?? '',
+      categoryName: json['categoryName'] as String?,
       date: json['date'] != null
           ? DateTime.tryParse(json['date'] as String) ?? DateTime.now()
           : DateTime.now(),

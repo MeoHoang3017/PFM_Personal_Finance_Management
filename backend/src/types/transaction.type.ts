@@ -4,7 +4,10 @@ export interface TransactionResponse {
     id: string;
     amount: number;
     type: 'income' | 'expense' | 'transfer';
+    /** Category id (ObjectId string). */
     category: string;
+    /** Category name for display (from populated Category). */
+    categoryName?: string;
     date: Date;
     description: string;
     notes: string;

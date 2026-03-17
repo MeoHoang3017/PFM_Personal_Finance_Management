@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/theme_palette.dart';
 import '../../core/utils/chart_data.dart';
+import '../../core/utils/currency_format.dart';
 import '../../data/models/transaction_models.dart';
 
 /// Biểu đồ thu/chi kiểu FinTracker: tab Chi | Thu, chọn 1 tháng / 3 tháng, line chart tích lũy.
@@ -21,12 +22,6 @@ class _HomeSpendingChartState extends State<HomeSpendingChart> {
 
   ChartDataModel get _chartData =>
       buildChartDataFromTransactions(widget.transactions, days: _periodDays);
-
-  String _formatCurrency(double value) {
-    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M ₫';
-    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K ₫';
-    return '${value.toStringAsFixed(0)} ₫';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,7 +101,7 @@ class _HomeSpendingChartState extends State<HomeSpendingChart> {
         ),
         const SizedBox(height: 16),
         Text(
-          '$label: ${_formatCurrency(totalValue)}',
+          '$label: ${formatCurrency(totalValue, compact: true)}',
           style: TextStyle(color: lineColor, fontSize: 17, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 20),

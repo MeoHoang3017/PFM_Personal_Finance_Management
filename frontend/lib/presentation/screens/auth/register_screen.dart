@@ -1,7 +1,9 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/di/injection.dart';
+import '../../../core/preferences/app_preferences.dart';
 import '../../../core/theme/app_palette_dark.dart';
 import '../../../core/theme/app_palette_light.dart';
 import '../../../data/models/auth_models.dart';
@@ -49,7 +51,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ));
       if (!mounted) return;
       setState(() => _loading = false);
-      if (res.isSuccess) {
+      if (res.isSuccess && res.result != null) {
+        getIt<AppPreferences>().updateFromUser(res.result!.user);
         context.go('/home');
       } else {
         setState(() => _errorMessage = res.message);
@@ -57,7 +60,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (_) {
       if (mounted) setState(() {
         _loading = false;
-        _errorMessage = 'Lỗi kết nối';
+        _errorMessage = 'error_connection'.tr();
       });
     }
   }
@@ -136,7 +139,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Bắt đầu hành trình tài chính của bạn',
+                    'create_account_subtitle'.tr(),
                     style: theme.textTheme.bodyLarge?.copyWith(
                       color: isDark ? PaletteDark.subtitleText : PaletteLight.subtitleText,
                     ),
@@ -162,32 +165,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   TextFormField(
                     controller: _usernameController,
                     decoration: _inputDecoration(
-                      labelText: 'Họ tên',
-                      hintText: 'Nhập họ tên',
+                      labelText: 'full_name'.tr(),
+                      hintText: 'hint_full_name'.tr(),
                       prefixIcon: Icons.person_outline,
                       isDark: isDark,
                     ),
-                    validator: (v) => v == null || v.isEmpty ? 'Nhập họ tên' : null,
+                    validator: (v) => v == null || v.isEmpty ? 'hint_full_name'.tr() : null,
                   ),
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: _inputDecoration(
-                      labelText: 'Email',
-                      hintText: 'Nhập email',
+                      labelText: 'email'.tr(),
+                      hintText: 'hint_email'.tr(),
                       prefixIcon: Icons.email_outlined,
                       isDark: isDark,
                     ),
-                    validator: (v) => v == null || v.isEmpty ? 'Nhập email' : null,
+                    validator: (v) => v == null || v.isEmpty ? 'hint_email'.tr() : null,
                   ),
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     decoration: _inputDecoration(
-                      labelText: 'Mật khẩu',
-                      hintText: 'Tối thiểu 6 ký tự',
+                      labelText: 'password'.tr(),
+                      hintText: 'password_min'.tr(),
                       prefixIcon: Icons.lock_outline,
                       isDark: isDark,
                       suffixIcon: IconButton(
@@ -199,8 +202,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     validator: (v) {
-                      if (v == null || v.isEmpty) return 'Nhập mật khẩu';
-                      if (v.length < 6) return 'Mật khẩu tối thiểu 6 ký tự';
+                      if (v == null || v.isEmpty) return 'hint_password'.tr();
+                      if (v.length < 6) return 'password_min_6'.tr();
                       return null;
                     },
                   ),
@@ -209,8 +212,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     controller: _confirmPasswordController,
                     obscureText: _obscureConfirmPassword,
                     decoration: _inputDecoration(
-                      labelText: 'Xác nhận mật khẩu',
-                      hintText: 'Nhập lại mật khẩu',
+                      labelText: 'confirm_password'.tr(),
+                      hintText: 'hint_confirm_password'.tr(),
                       prefixIcon: Icons.lock_outline,
                       isDark: isDark,
                       suffixIcon: IconButton(
@@ -222,8 +225,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                     ),
                     validator: (v) {
-                      if (v == null || v.isEmpty) return 'Nhập xác nhận mật khẩu';
-                      if (v != _passwordController.text) return 'Mật khẩu không khớp';
+                      if (v == null || v.isEmpty) return 'hint_confirm_password_validation'.tr();
+                      if (v != _passwordController.text) return 'password_mismatch'.tr();
                       return null;
                     },
                   ),
@@ -254,8 +257,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 color: isDark ? Colors.black : Colors.white,
                               ),
                             )
-                          : const Text(
-                              'Đăng ký',
+                          : Text(
+                              'register'.tr(),
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -279,7 +282,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             ),
                           ),
                           Text(
-                            'Đăng nhập',
+                            'login'.tr(),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,

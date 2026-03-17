@@ -15,12 +15,16 @@ class TransactionService {
     String? type,
     String? wallet,
     String? category,
+    DateTime? startDate,
+    DateTime? endDate,
   }) async {
     try {
       final q = <String, dynamic>{'page': page, 'pageSize': pageSize};
       if (type != null) q['type'] = type;
       if (wallet != null) q['wallet'] = wallet;
       if (category != null) q['category'] = category;
+      if (startDate != null) q['startDate'] = startDate.toUtc().toIso8601String();
+      if (endDate != null) q['endDate'] = endDate.toUtc().toIso8601String();
       final res = await _api.dio.get('/transactions', queryParameters: q);
       final data = res.data as Map<String, dynamic>;
       final result = data['result'];

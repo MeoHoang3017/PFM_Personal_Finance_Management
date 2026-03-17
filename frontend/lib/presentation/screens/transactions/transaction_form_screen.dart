@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
@@ -90,9 +91,14 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     CategoryModel? selCat;
     final ct = _categoryTypeFor(_type);
     if (ct != null) {
-      final byType = cats.where((c) => c.type == ct).toList();
-      if (byType.isNotEmpty) selCat = byType.first;
-      else if (cats.isNotEmpty) selCat = cats.first;
+      if (widget.transaction != null && widget.transaction!.category.isNotEmpty) {
+        final match = cats.where((c) => c.id == widget.transaction!.category);
+        selCat = match.isEmpty ? null : match.first;
+      }
+      if (selCat == null) {
+        final byType = cats.where((c) => c.type == ct).toList();
+        selCat = byType.isNotEmpty ? byType.first : (cats.isNotEmpty ? cats.first : null);
+      }
     } else {
       selCat = null;
     }
@@ -118,7 +124,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
 
   Future<void> _save() async {
     if (_user == null || _selectedWallet == null) {
-      setState(() => _errorMessage = 'Chọn ví và đảm bảo đã đăng nhập');
+      setState(() => _errorMessage = 'select_wallet_login'.tr());
       return;
     }
     final amount = double.tryParse(_amountController.text.replaceAll(',', '')) ?? 0;
@@ -144,10 +150,10 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
         );
         if (!mounted) return;
         setState(() => _loading = false);
-        if (res.isSuccess) {
-          Navigator.pop(context, true);
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã cập nhật giao dịch')));
-        } else {
+        if (res.isSuccess && res.result != null) {
+          Navigator.pop(context, res.result);
+          AppToast.showSuccess(context, 'transaction_updated'.tr());
+        } else if (!res.isSuccess) {
           setState(() => _errorMessage = res.message);
         }
       } else {
@@ -163,17 +169,17 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
         ));
         if (!mounted) return;
         setState(() => _loading = false);
-        if (res.isSuccess) {
-          Navigator.pop(context, true);
-          AppToast.showSuccess(context, 'Đã thêm giao dịch');
-        } else {
+        if (res.isSuccess && res.result != null) {
+          Navigator.pop(context, res.result);
+          AppToast.showSuccess(context, 'transaction_added'.tr());
+        } else if (!res.isSuccess) {
           setState(() => _errorMessage = res.message);
         }
       }
     } catch (_) {
       if (mounted) setState(() {
         _loading = false;
-        _errorMessage = 'Lỗi kết nối';
+        _errorMessage = 'error_connection'.tr();
       });
     }
   }
@@ -183,13 +189,13 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     final isEdit = widget.transaction != null;
     if (_loadingData) {
       return Scaffold(
-        appBar: AppBar(title: Text(isEdit ? 'Sửa giao dịch' : 'Thêm giao dịch')),
+        appBar: AppBar(title: Text(isEdit ? 'edit_transaction'.tr() : 'add_transaction'.tr())),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
     return Scaffold(
       appBar: AppBar(
-        title: Text(isEdit ? 'Sửa giao dịch' : 'Thêm giao dịch'),
+        title: Text(isEdit ? 'edit_transaction'.tr() : 'add_transaction'.tr()),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -211,10 +217,10 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                   const SizedBox(height: 16),
                 ],
                 SegmentedButton<TransactionType>(
-                  segments: const [
-                    ButtonSegment(value: TransactionType.income, icon: Icon(Icons.arrow_downward), label: Text('Thu')),
-                    ButtonSegment(value: TransactionType.expense, icon: Icon(Icons.arrow_upward), label: Text('Chi')),
-                    ButtonSegment(value: TransactionType.transfer, icon: Icon(Icons.swap_horiz), label: Text('Chuyển')),
+                  segments: [
+                    ButtonSegment(value: TransactionType.income, icon: const Icon(Icons.arrow_downward), label: Text('type_income'.tr())),
+                    ButtonSegment(value: TransactionType.expense, icon: const Icon(Icons.arrow_upward), label: Text('type_expense'.tr())),
+                    ButtonSegment(value: TransactionType.transfer, icon: const Icon(Icons.swap_horiz), label: Text('type_transfer'.tr())),
                   ],
                   selected: {_type},
                   onSelectionChanged: (s) {
@@ -234,31 +240,31 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                 TextFormField(
                   controller: _amountController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Số tiền',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: 'amount'.tr(),
+                    border: const OutlineInputBorder(),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'Nhập số tiền';
-                    if (double.tryParse(v.replaceAll(',', '')) == null) return 'Số không hợp lệ';
+                    if (v == null || v.isEmpty) return 'hint_amount'.tr();
+                    if (double.tryParse(v.replaceAll(',', '')) == null) return 'invalid_number'.tr();
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<Wallet>(
                   value: _selectedWallet,
-                  decoration: const InputDecoration(labelText: 'Ví', border: OutlineInputBorder()),
+                  decoration: InputDecoration(labelText: 'wallet_label'.tr(), border: const OutlineInputBorder()),
                   items: _wallets
                       .map((w) => DropdownMenuItem<Wallet>(value: w, child: Text(w.name)))
                       .toList(),
                   onChanged: (w) => setState(() => _selectedWallet = w),
-                  validator: (v) => v == null ? 'Chọn ví' : null,
+                  validator: (v) => v == null ? 'select_wallet'.tr() : null,
                 ),
                 const SizedBox(height: 16),
                 if (_type != TransactionType.transfer) ...[
                   DropdownButtonFormField<CategoryModel>(
                     value: _selectedCategory,
-                    decoration: const InputDecoration(labelText: 'Danh mục', border: OutlineInputBorder()),
+                    decoration: InputDecoration(labelText: 'category'.tr(), border: const OutlineInputBorder()),
                     items: _categories
                         .where((c) => c.type == _categoryTypeFor(_type))
                         .map((c) => DropdownMenuItem<CategoryModel>(value: c, child: Text(c.name)))
@@ -268,7 +274,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                   const SizedBox(height: 16),
                 ],
                 ListTile(
-                  title: const Text('Ngày'),
+                  title: Text('date'.tr()),
                   subtitle: Text('${_date.day}/${_date.month}/${_date.year}'),
                   trailing: const Icon(Icons.calendar_today),
                   onTap: () async {
@@ -279,18 +285,18 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Mô tả',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: 'description'.tr(),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _notesController,
                   maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Ghi chú',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: 'note'.tr(),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -298,7 +304,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                   onPressed: _loading ? null : () {
                     if (_formKey.currentState?.validate() ?? false) _save();
                   },
-                  child: _loading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : Text(isEdit ? 'Cập nhật' : 'Thêm giao dịch'),
+                  child: _loading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2)) : Text(isEdit ? 'update'.tr() : 'add_transaction_btn'.tr()),
                 ),
               ],
             ),

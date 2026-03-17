@@ -1,7 +1,9 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
 import '../../../core/theme/theme_palette.dart';
+import '../../../core/utils/currency_format.dart';
 import '../../../core/utils/app_toast.dart';
 import '../../../data/models/wallet_models.dart';
 import '../../../data/services/wallet_service.dart';
@@ -42,7 +44,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
     } catch (_) {
       if (mounted) setState(() {
         _loading = false;
-        _error = 'Không tải được danh sách ví';
+        _error = 'error_load_wallets'.tr();
       });
     }
   }
@@ -61,14 +63,14 @@ class _WalletsScreenState extends State<WalletsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Xóa ví'),
-        content: Text('Bạn có chắc muốn xóa ví "${w.name}"?'),
+        title: Text('delete_wallet'.tr()),
+        content: Text('delete_wallet_confirm'.tr(namedArgs: {'name': w.name})),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('cancel'.tr())),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
-            child: const Text('Xóa'),
+            child: Text('delete'.tr()),
           ),
         ],
       ),
@@ -91,7 +93,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
     return Scaffold(
       backgroundColor: p.backgroundColor,
       appBar: AppBar(
-        title: Text('Ví', style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600)),
+        title: Text('wallets'.tr(), style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600)),
         backgroundColor: p.appBarBg,
         elevation: 0,
         foregroundColor: p.primaryText,
@@ -124,7 +126,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                           children: [
                             Text(_error!, style: TextStyle(color: p.errorColor), textAlign: TextAlign.center),
                             const SizedBox(height: 16),
-                            FilledButton(onPressed: _load, child: const Text('Thử lại')),
+                            FilledButton(onPressed: _load, child: Text('retry'.tr())),
                           ],
                         ),
                       )
@@ -135,12 +137,12 @@ class _WalletsScreenState extends State<WalletsScreen> {
                               children: [
                                 Icon(Icons.account_balance_wallet_outlined, size: 64, color: p.iconMuted),
                                 const SizedBox(height: 16),
-                                Text('Chưa có ví nào', style: TextStyle(color: p.primaryText, fontSize: 16, fontWeight: FontWeight.w600)),
+                                Text('no_wallets'.tr(), style: TextStyle(color: p.primaryText, fontSize: 16, fontWeight: FontWeight.w600)),
                                 const SizedBox(height: 8),
                                 FilledButton.icon(
                                   onPressed: () => _openForm(),
                                   icon: const Icon(Icons.add),
-                                  label: const Text('Thêm ví'),
+                                  label: Text('add_wallet'.tr()),
                                 ),
                               ],
                             ),
@@ -166,7 +168,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                                           child: Icon(Icons.account_balance_wallet_outlined, color: p.primaryAction, size: 20),
                                         ),
                                         title: Text(w.name, style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w500)),
-                                        subtitle: Text('${w.balance.toStringAsFixed(0)} ₫', style: TextStyle(color: p.subtitleText, fontSize: 13)),
+                                        subtitle: Text(formatCurrency(w.balance), style: TextStyle(color: p.subtitleText, fontSize: 13)),
                                         trailing: PopupMenuButton<String>(
                                           icon: Icon(Icons.more_vert, color: p.iconMuted),
                                           onSelected: (v) {
@@ -174,8 +176,8 @@ class _WalletsScreenState extends State<WalletsScreen> {
                                             if (v == 'delete') _confirmDelete(w);
                                           },
                                           itemBuilder: (ctx) => [
-                                            const PopupMenuItem(value: 'edit', child: Text('Sửa')),
-                                            const PopupMenuItem(value: 'delete', child: Text('Xóa')),
+                                            PopupMenuItem(value: 'edit', child: Text('edit'.tr())),
+                                            PopupMenuItem(value: 'delete', child: Text('delete'.tr())),
                                           ],
                                         ),
                                         onTap: () => _openForm(w),

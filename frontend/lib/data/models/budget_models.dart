@@ -24,11 +24,14 @@ class BudgetModel {
   final String id;
   final double amount;
   final String category;
+  final String? categoryName;
   final BudgetPeriod period;
   final DateTime startDate;
   final DateTime endDate;
   final String user;
   final bool isActive;
+  final double? spentAmount;
+  final bool? isOverBudget;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -36,11 +39,14 @@ class BudgetModel {
     required this.id,
     required this.amount,
     required this.category,
+    this.categoryName,
     required this.period,
     required this.startDate,
     required this.endDate,
     required this.user,
     this.isActive = true,
+    this.spentAmount,
+    this.isOverBudget,
     this.createdAt,
     this.updatedAt,
   });
@@ -50,11 +56,14 @@ class BudgetModel {
       id: json['id'] as String? ?? '',
       amount: (json['amount'] as num?)?.toDouble() ?? 0,
       category: json['category'] as String? ?? '',
+      categoryName: json['categoryName'] as String?,
       period: BudgetPeriodExt.fromString(json['period'] as String?),
       startDate: json['startDate'] != null ? DateTime.tryParse(json['startDate'] as String) ?? DateTime.now() : DateTime.now(),
       endDate: json['endDate'] != null ? DateTime.tryParse(json['endDate'] as String) ?? DateTime.now() : DateTime.now(),
       user: json['user'] as String? ?? '',
       isActive: json['isActive'] as bool? ?? true,
+      spentAmount: (json['spentAmount'] as num?)?.toDouble(),
+      isOverBudget: json['isOverBudget'] as bool?,
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'] as String) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'] as String) : null,
     );

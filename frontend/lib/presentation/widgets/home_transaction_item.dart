@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/theme_palette.dart';
+import '../../core/utils/currency_format.dart';
 import '../../data/models/transaction_models.dart';
 
 /// Một dòng giao dịch gần đây trên homepage kiểu FinTracker.
@@ -17,7 +18,7 @@ class HomeTransactionItem extends StatelessWidget {
     final color = isIncome ? p.incomeColor : p.expenseColor;
     final title = transaction.description.isEmpty ? (isIncome ? 'Thu nhập' : 'Chi tiêu') : transaction.description;
     final dateStr = '${transaction.date.day}/${transaction.date.month}/${transaction.date.year}';
-    final amountStr = '${transaction.amount.toStringAsFixed(0)} ₫';
+    final amountStr = formatCurrency(transaction.amount);
 
     final content = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

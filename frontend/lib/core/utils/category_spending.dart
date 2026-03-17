@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../data/models/transaction_models.dart';
+import 'currency_format.dart';
 
 /// Dữ liệu một nhóm chi tiêu theo category (dùng trong Top Spending).
 class CategorySpendingItem {
@@ -47,11 +48,7 @@ final Map<String, (IconData, Color)> _categoryStyle = {
   return _categoryStyle[category] ?? _categoryStyle['Khác']!;
 }
 
-String _formatAmount(double value) {
-  if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M ₫';
-  if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K ₫';
-  return '${value.toStringAsFixed(0)} ₫';
-}
+String _formatAmount(double value) => formatCurrency(value, compact: true);
 
 /// Tính Top Spending theo category từ danh sách giao dịch (chỉ giao dịch chi).
 /// [periodMonth], [periodYear]: nếu truyền thì chỉ lấy giao dịch trong tháng đó.
@@ -86,7 +83,9 @@ CategorySpendingResult buildCategorySpendingFromTransactions(
   final Map<String, List<TransactionModel>> categoryTransactions = {};
 
   for (final t in expenses) {
-    final cat = t.category.isEmpty ? 'Khác' : t.category;
+    final cat = (t.categoryName != null && t.categoryName!.isNotEmpty)
+        ? t.categoryName!
+        : (t.category.isEmpty ? 'Khác' : t.category);
     categoryTotal[cat] = (categoryTotal[cat] ?? 0) + t.amount;
     categoryTransactions.putIfAbsent(cat, () => []).add(t);
   }

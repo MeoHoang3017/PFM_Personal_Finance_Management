@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
@@ -84,14 +85,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ));
         if (!mounted) return;
         Navigator.pop(context, true);
-        AppToast.showSuccess(context, 'Đã cập nhật hồ sơ');
+        AppToast.showSuccess(context, 'profile_updated'.tr());
       } else {
         setState(() => _errorMessage = res.message);
       }
     } catch (_) {
       if (mounted) setState(() {
         _loading = false;
-        _errorMessage = 'Lỗi kết nối';
+        _errorMessage = 'error_connection'.tr();
       });
     }
   }
@@ -100,12 +101,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     if (_loadingData) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Chỉnh sửa hồ sơ')),
+        appBar: AppBar(title: Text('profile_edit'.tr())),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Chỉnh sửa hồ sơ')),
+      appBar: AppBar(title: Text('profile_edit'.tr())),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -127,23 +128,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ],
                 TextFormField(
                   controller: _usernameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Tên hiển thị',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.person_outline),
+                  decoration: InputDecoration(
+                    labelText: 'display_name'.tr(),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.person_outline),
                   ),
-                  validator: (v) => v == null || v.isEmpty ? 'Nhập tên' : null,
+                  validator: (v) => v == null || v.isEmpty ? 'hint_display_name'.tr() : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email_outlined),
+                  decoration: InputDecoration(
+                    labelText: 'email'.tr(),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.email_outlined),
                   ),
-                  validator: (v) => v == null || v.isEmpty ? 'Nhập email' : null,
+                  validator: (v) => v == null || v.isEmpty ? 'hint_email'.tr() : null,
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
@@ -154,7 +155,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         },
                   child: _loading
                       ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Cập nhật'),
+                      : Text('update'.tr()),
                 ),
               ],
             ),

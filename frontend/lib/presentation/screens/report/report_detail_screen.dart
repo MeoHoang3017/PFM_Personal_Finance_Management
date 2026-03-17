@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
 import '../../../core/theme/theme_palette.dart';
+import '../../../core/utils/currency_format.dart';
 import '../../../core/utils/monthly_report_helper.dart';
 import '../../../data/models/transaction_models.dart';
 import '../../../data/services/transaction_service.dart';
@@ -65,12 +66,6 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
   }
 
   void _goBack() => Navigator.maybePop(context);
-
-  String _formatCurrency(double value) {
-    if (value.abs() >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M ₫';
-    if (value.abs() >= 1000) return '${(value / 1000).toStringAsFixed(1)}K ₫';
-    return '${value.toStringAsFixed(0)} ₫';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,7 +162,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 child: _IncomeExpenseCard(
                   isIncome: true,
                   label: 'Tổng thu',
-                  value: _formatCurrency(monthData.totalIncome),
+                  value: formatCurrency(monthData.totalIncome),
                   palette: p,
                   shadow: shadow,
                 ),
@@ -177,7 +172,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 child: _IncomeExpenseCard(
                   isIncome: false,
                   label: 'Tổng chi',
-                  value: _formatCurrency(monthData.totalExpense),
+                  value: formatCurrency(monthData.totalExpense),
                   palette: p,
                   shadow: shadow,
                 ),
@@ -343,12 +338,6 @@ class _TransactionDetailSheet extends StatelessWidget {
 
   const _TransactionDetailSheet({required this.transaction});
 
-  String _formatCurrency(double value) {
-    if (value.abs() >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M ₫';
-    if (value.abs() >= 1000) return '${(value / 1000).toStringAsFixed(1)}K ₫';
-    return '${value.toStringAsFixed(0)} ₫';
-  }
-
   @override
   Widget build(BuildContext context) {
     final p = pfmPaletteOf(context);
@@ -407,11 +396,11 @@ class _TransactionDetailSheet extends StatelessWidget {
                         dateStr,
                         style: TextStyle(color: p.subtitleText, fontSize: 14),
                       ),
-                      if (transaction.category.isNotEmpty)
+                      if (transaction.categoryDisplay.isNotEmpty)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Text(
-                            transaction.category,
+                            transaction.categoryDisplay,
                             style: TextStyle(color: p.subtitleText, fontSize: 12),
                           ),
                         ),
@@ -419,7 +408,7 @@ class _TransactionDetailSheet extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${isIncome ? '+' : '-'}${_formatCurrency(transaction.amount)}',
+                  '${isIncome ? '+' : '-'}${formatCurrency(transaction.amount)}',
                   style: TextStyle(
                     color: color,
                     fontWeight: FontWeight.bold,

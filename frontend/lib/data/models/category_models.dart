@@ -86,9 +86,30 @@ class UpdateCategoryData {
     final m = <String, dynamic>{};
     if (name != null) m['name'] = name;
     if (type != null) m['type'] = type!.value;
-    if (parentCategory != null) m['parentCategory'] = parentCategory;
+    m['parentCategory'] = parentCategory;
     if (icon != null) m['icon'] = icon;
     if (color != null) m['color'] = color;
     return m;
+  }
+}
+
+/// Nút cây danh mục: danh mục cha và danh mục con.
+class CategoryNode {
+  final CategoryModel category;
+  final List<CategoryNode> children;
+
+  CategoryNode({required this.category, required this.children});
+
+  /// Xây cây từ danh sách phẳng. Gốc là các category có parentCategory null.
+  static List<CategoryNode> buildTree(List<CategoryModel> flat) {
+    final byParent = <String?, List<CategoryModel>>{};
+    for (final c in flat) {
+      byParent.putIfAbsent(c.parentCategory, () => []).add(c);
+    }
+    List<CategoryNode> build(String? parentId) {
+      final list = byParent[parentId] ?? [];
+      return list.map((c) => CategoryNode(category: c, children: build(c.id))).toList();
+    }
+    return build(null);
   }
 }

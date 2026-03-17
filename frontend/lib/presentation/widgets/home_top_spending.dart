@@ -1,6 +1,8 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/theme_palette.dart';
+import '../../core/utils/currency_format.dart';
 import '../../data/models/transaction_models.dart';
 import 'section_card.dart';
 import 'section_header.dart';
@@ -52,7 +54,7 @@ class _HomeTopSpendingState extends State<HomeTopSpending> {
   List<({String category, double amount})> get _byCategory {
     final map = <String, double>{};
     for (final t in _filtered) {
-      final name = t.category.isEmpty ? 'Khác' : t.category;
+      final name = t.categoryDisplay.isEmpty ? 'other_category'.tr() : t.categoryDisplay;
       map[name] = (map[name] ?? 0) + t.amount;
     }
     final list = map.entries.map((e) => (category: e.key, amount: e.value)).toList();
@@ -84,8 +86,8 @@ class _HomeTopSpendingState extends State<HomeTopSpending> {
         mainAxisSize: MainAxisSize.min,
         children: [
           SectionHeader(
-            title: 'Chi tiêu nhiều nhất',
-            actionText: 'Xem chi tiết',
+            title: 'top_spending'.tr(),
+            actionText: 'view_detail'.tr(),
             onActionTap: items.isEmpty ? null : widget.onViewDetail,
           ),
           Divider(height: 1, color: p.borderColor),
@@ -97,7 +99,7 @@ class _HomeTopSpendingState extends State<HomeTopSpending> {
                   children: [
                     Expanded(
                       child: _TabChip(
-                        label: 'Tuần',
+                        label: 'week'.tr(),
                         selected: _isWeek,
                         onTap: () => setState(() => _isWeek = true),
                         p: p,
@@ -106,7 +108,7 @@ class _HomeTopSpendingState extends State<HomeTopSpending> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: _TabChip(
-                        label: 'Tháng',
+                        label: 'month'.tr(),
                         selected: !_isWeek,
                         onTap: () => setState(() => _isWeek = false),
                         p: p,
@@ -123,7 +125,7 @@ class _HomeTopSpendingState extends State<HomeTopSpending> {
                         Icon(Icons.analytics_outlined, size: 52, color: p.iconMuted),
                         const SizedBox(height: 16),
                         Text(
-                          'Nhóm chi tiêu nhiều nhất sẽ hiển thị ở đây',
+                          'top_spending_empty'.tr(),
                           style: TextStyle(color: p.subtitleText, fontSize: 15),
                           textAlign: TextAlign.center,
                         ),
@@ -166,7 +168,7 @@ class _HomeTopSpendingState extends State<HomeTopSpending> {
                             ),
                           ),
                           Text(
-                            '${item.amount.toStringAsFixed(0)} ₫',
+                            formatCurrency(item.amount),
                             style: TextStyle(
                               color: p.expenseColor,
                               fontWeight: FontWeight.bold,

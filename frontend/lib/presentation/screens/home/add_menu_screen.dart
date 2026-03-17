@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/theme_palette.dart';
@@ -19,7 +20,7 @@ class AddMenuScreen extends StatelessWidget {
       ),
     );
     if (ok == true && context.mounted) {
-      AppToast.showSuccess(context, 'Đã thêm giao dịch');
+      AppToast.showSuccess(context, 'transaction_added'.tr());
     }
   }
 
@@ -31,7 +32,7 @@ class AddMenuScreen extends StatelessWidget {
       ),
     );
     if (ok == true && context.mounted) {
-      AppToast.showSuccess(context, 'Đã thêm ví');
+      AppToast.showSuccess(context, 'wallet_added'.tr());
     }
   }
 
@@ -43,7 +44,7 @@ class AddMenuScreen extends StatelessWidget {
       ),
     );
     if (ok == true && context.mounted) {
-      AppToast.showSuccess(context, 'Đã thêm ngân sách');
+      AppToast.showSuccess(context, 'budget_added'.tr());
     }
   }
 
@@ -55,7 +56,7 @@ class AddMenuScreen extends StatelessWidget {
       ),
     );
     if (ok == true && context.mounted) {
-      AppToast.showSuccess(context, 'Đã thêm mục tiêu');
+      AppToast.showSuccess(context, 'goal_added'.tr());
     }
   }
 
@@ -72,7 +73,7 @@ class AddMenuScreen extends StatelessWidget {
             children: [
               const SizedBox(height: 32),
               Text(
-                'Thêm mới',
+                'add_new'.tr(),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
@@ -81,7 +82,7 @@ class AddMenuScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Chọn loại bạn muốn thêm',
+                'add_new_subtitle'.tr(),
                 style: TextStyle(
                   fontSize: 14,
                   color: p.subtitleText,
@@ -90,32 +91,32 @@ class AddMenuScreen extends StatelessWidget {
               const SizedBox(height: 32),
               _OptionTile(
                 icon: Icons.receipt_long_outlined,
-                title: 'Thêm giao dịch',
-                subtitle: 'Thu chi, chuyển khoản',
+                title: 'add_transaction'.tr(),
+                subtitle: 'add_transaction_subtitle'.tr(),
                 color: p.primaryAction,
                 onTap: () => _openTransaction(context),
               ),
               const SizedBox(height: 12),
               _OptionTile(
                 icon: Icons.account_balance_wallet_outlined,
-                title: 'Thêm ví',
-                subtitle: 'Ví tiền mặt, ngân hàng',
+                title: 'add_wallet'.tr(),
+                subtitle: 'add_wallet_subtitle'.tr(),
                 color: p.primaryAction,
                 onTap: () => _openWallet(context),
               ),
               const SizedBox(height: 12),
               _OptionTile(
                 icon: Icons.pie_chart_outline,
-                title: 'Thêm ngân sách',
-                subtitle: 'Đặt giới hạn chi tiêu',
+                title: 'add_budget'.tr(),
+                subtitle: 'add_budget_subtitle'.tr(),
                 color: p.expenseColor,
                 onTap: () => _openBudget(context),
               ),
               const SizedBox(height: 12),
               _OptionTile(
                 icon: Icons.flag_outlined,
-                title: 'Thêm mục tiêu',
-                subtitle: 'Tiết kiệm, mục tiêu tài chính',
+                title: 'add_goal'.tr(),
+                subtitle: 'add_goal_subtitle'.tr(),
                 color: p.incomeColor,
                 onTap: () => _openGoal(context),
               ),

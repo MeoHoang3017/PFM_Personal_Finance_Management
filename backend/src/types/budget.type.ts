@@ -4,11 +4,17 @@ export interface BudgetResponse {
     id: string;
     amount: number;
     category: string;
+    /** Tên category (populated) để hiển thị. */
+    categoryName?: string;
     period: 'daily' | 'weekly' | 'monthly' | 'yearly';
     startDate: Date;
     endDate: Date;
     user: string;
     isActive: boolean;
+    /** Tổng chi trong khoảng [startDate, endDate] cho category này. */
+    spentAmount?: number;
+    /** true khi spentAmount > amount (đã vượt ngân sách). */
+    isOverBudget?: boolean;
     createdAt: Date;
     updatedAt: Date;
 }

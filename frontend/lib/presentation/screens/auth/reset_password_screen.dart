@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -50,7 +51,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       if (!mounted) return;
       setState(() => _loading = false);
       if (res.isSuccess) {
-        AppToast.showSuccess(context, 'Đã đặt lại mật khẩu');
+        AppToast.showSuccess(context, 'reset_password_success'.tr());
         context.go('/login');
       } else {
         setState(() => _errorMessage = res.message);
@@ -58,7 +59,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     } catch (_) {
       if (mounted) setState(() {
         _loading = false;
-        _errorMessage = 'Lỗi kết nối';
+        _errorMessage = 'error_connection'.tr();
       });
     }
   }
@@ -89,34 +90,34 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email_outlined),
+                  decoration: InputDecoration(
+                    labelText: 'email'.tr(),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.email_outlined),
                   ),
-                  validator: (v) => v == null || v.isEmpty ? 'Nhập email' : null,
+                  validator: (v) => v == null || v.isEmpty ? 'hint_email'.tr() : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _otpController,
-                  decoration: const InputDecoration(
-                    labelText: 'Mã xác thực (OTP)',
-                    hintText: 'Nhập mã từ email',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.pin_outlined),
+                  decoration: InputDecoration(
+                    labelText: 'otp_label'.tr(),
+                    hintText: 'otp_hint'.tr(),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.pin_outlined),
                   ),
-                  validator: (v) => v == null || v.isEmpty ? 'Nhập mã OTP' : null,
+                  validator: (v) => v == null || v.isEmpty ? 'hint_otp'.tr() : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Mật khẩu mới',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock_outline),
+                  decoration: InputDecoration(
+                    labelText: 'new_password_label'.tr(),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outline),
                   ),
-                  validator: (v) => v == null || v.length < 6 ? 'Mật khẩu tối thiểu 6 ký tự' : null,
+                  validator: (v) => v == null || v.length < 6 ? 'password_min_6'.tr() : null,
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
@@ -127,12 +128,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         },
                   child: _loading
                       ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Đặt lại mật khẩu'),
+                      : Text('reset_password'.tr()),
                 ),
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () => context.pop(),
-                  child: const Text('Quay lại'),
+                  child: Text('back'.tr()),
                 ),
               ],
             ),

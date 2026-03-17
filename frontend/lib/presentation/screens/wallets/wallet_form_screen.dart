@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
@@ -76,7 +77,7 @@ class _WalletFormScreenState extends State<WalletFormScreen> {
         setState(() => _loading = false);
         if (res.isSuccess) {
           Navigator.pop(context, true);
-          AppToast.showSuccess(context, 'Đã thêm ví');
+          AppToast.showSuccess(context, 'wallet_added'.tr());
         } else {
           setState(() => _errorMessage = res.message);
         }
@@ -96,7 +97,7 @@ class _WalletFormScreenState extends State<WalletFormScreen> {
     return Scaffold(
       backgroundColor: p.backgroundColor,
       appBar: AppBar(
-        title: Text(isEdit ? 'Sửa ví' : 'Thêm ví', style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600)),
+        title: Text(isEdit ? 'edit_wallet'.tr() : 'add_wallet'.tr(), style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600)),
         backgroundColor: p.appBarBg,
         elevation: 0,
         foregroundColor: p.primaryText,
@@ -134,7 +135,7 @@ class _WalletFormScreenState extends State<WalletFormScreen> {
                   controller: _balanceController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
-                    labelText: 'Số dư hiện tại',
+                    labelText: 'wallet_balance'.tr(),
                     hintText: '0',
                     prefixIcon: Icon(Icons.attach_money, color: p.iconMuted),
                   ),

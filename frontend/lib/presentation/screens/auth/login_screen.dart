@@ -1,7 +1,9 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/di/injection.dart';
+import '../../../core/preferences/app_preferences.dart';
 import '../../../core/theme/app_palette_dark.dart';
 import '../../../core/theme/app_palette_light.dart';
 import '../../../data/models/auth_models.dart';
@@ -50,22 +52,53 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       final auth = getIt<AuthService>();
-      final res = await auth.login(LoginRequest(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      ));
+      final res = await auth.login(
+        LoginRequest(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        ),
+      );
       if (!mounted) return;
       setState(() => _loading = false);
-      if (res.isSuccess) {
+      if (res.isSuccess && res.result != null) {
+        getIt<AppPreferences>().updateFromUser(res.result!.user);
         context.go('/home');
       } else {
         setState(() => _errorMessage = res.message);
       }
     } catch (_) {
-      if (mounted) setState(() {
-        _loading = false;
-        _errorMessage = 'Lỗi kết nối';
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _errorMessage = 'error_connection'.tr();
+        });
+      }
+    }
+  }
+
+  Future<void> _loginWithGoogle() async {
+    setState(() {
+      _errorMessage = null;
+      _loading = true;
+    });
+    try {
+      final auth = getIt<AuthService>();
+      final res = await auth.loginWithGoogle();
+      if (!mounted) return;
+      setState(() => _loading = false);
+      if (res.isSuccess && res.result != null) {
+        getIt<AppPreferences>().updateFromUser(res.result!.user);
+        context.go('/home');
+      } else {
+        setState(() => _errorMessage = res.message);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _errorMessage = 'error_google_login'.tr();
+        });
+      }
     }
   }
 
@@ -134,7 +167,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 40),
                   Text(
-                    'Chào mừng trở lại',
+                    'welcome_back'.tr(),
                     style: theme.textTheme.headlineLarge?.copyWith(
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.5,
@@ -143,39 +176,58 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'Đăng nhập để tiếp tục quản lý tài chính',
+                    'login_subtitle'.tr(),
                     style: theme.textTheme.bodyLarge?.copyWith(
-                      color: isDark ? PaletteDark.subtitleText : PaletteLight.subtitleText,
+                      color: isDark
+                          ? PaletteDark.subtitleText
+                          : PaletteLight.subtitleText,
                     ),
                   ),
                   const SizedBox(height: 32),
                   if (_backendConnected != null) ...[
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: _backendConnected!
-                            ? (isDark ? PaletteDark.primaryAction : PaletteLight.primaryAction).withValues(alpha: 0.15)
-                            : (isDark ? PaletteDark.errorColor : PaletteLight.errorColor).withValues(alpha: 0.15),
+                            ? (isDark
+                                      ? PaletteDark.primaryAction
+                                      : PaletteLight.primaryAction)
+                                  .withValues(alpha: 0.15)
+                            : (isDark
+                                      ? PaletteDark.errorColor
+                                      : PaletteLight.errorColor)
+                                  .withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         children: [
                           Icon(
-                            _backendConnected! ? Icons.check_circle : Icons.cloud_off,
+                            _backendConnected!
+                                ? Icons.check_circle
+                                : Icons.cloud_off,
                             size: 20,
                             color: _backendConnected!
-                                ? (isDark ? PaletteDark.primaryAction : PaletteLight.primaryAction)
-                                : (isDark ? PaletteDark.errorColor : PaletteLight.errorColor),
+                                ? (isDark
+                                      ? PaletteDark.primaryAction
+                                      : PaletteLight.primaryAction)
+                                : (isDark
+                                      ? PaletteDark.errorColor
+                                      : PaletteLight.errorColor),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               _backendConnected!
-                                  ? 'Đã kết nối máy chủ'
-                                  : 'Chưa kết nối máy chủ. Kiểm tra backend (port 5000).',
+                                  ? 'server_connected'.tr()
+                                  : 'server_not_connected'.tr(),
                               style: TextStyle(
                                 fontSize: 12,
-                                color: isDark ? PaletteDark.primaryText : PaletteLight.primaryText,
+                                color: isDark
+                                    ? PaletteDark.primaryText
+                                    : PaletteLight.primaryText,
                               ),
                             ),
                           ),
@@ -188,13 +240,19 @@ class _LoginScreenState extends State<LoginScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: (isDark ? PaletteDark.errorColor : PaletteLight.errorColor).withValues(alpha: 0.15),
+                        color:
+                            (isDark
+                                    ? PaletteDark.errorColor
+                                    : PaletteLight.errorColor)
+                                .withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         _errorMessage!,
                         style: TextStyle(
-                          color: isDark ? PaletteDark.errorColor : PaletteLight.errorColor,
+                          color: isDark
+                              ? PaletteDark.errorColor
+                              : PaletteLight.errorColor,
                           fontSize: 13,
                         ),
                       ),
@@ -205,41 +263,51 @@ class _LoginScreenState extends State<LoginScreen> {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: _inputDecoration(
-                      labelText: 'Email',
-                      hintText: 'Nhập email',
+                      labelText: 'email'.tr(),
+                      hintText: 'hint_email'.tr(),
                       prefixIcon: Icons.email_outlined,
                       isDark: isDark,
                     ),
-                    validator: (v) => v == null || v.isEmpty ? 'Nhập email' : null,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'hint_email'.tr() : null,
                   ),
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
                     decoration: _inputDecoration(
-                      labelText: 'Mật khẩu',
-                      hintText: 'Nhập mật khẩu',
+                      labelText: 'password'.tr(),
+                      hintText: 'hint_password'.tr(),
                       prefixIcon: Icons.lock_outline,
                       isDark: isDark,
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                          color: isDark ? PaletteDark.subtitleText : PaletteLight.subtitleText,
+                          _obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                          color: isDark
+                              ? PaletteDark.subtitleText
+                              : PaletteLight.subtitleText,
                         ),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
                       ),
                     ),
-                    validator: (v) => v == null || v.isEmpty ? 'Nhập mật khẩu' : null,
+                    validator: (v) =>
+                        v == null || v.isEmpty ? 'hint_password'.tr() : null,
                   ),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Ghi nhớ đăng nhập',
+                        'remember_me'.tr(),
                         style: TextStyle(
                           fontSize: 14,
-                          color: isDark ? PaletteDark.subtitleText : PaletteLight.subtitleText,
+                          color: isDark
+                              ? PaletteDark.subtitleText
+                              : PaletteLight.subtitleText,
                         ),
                       ),
                       TextButton(
@@ -250,11 +318,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                         child: Text(
-                          'Quên mật khẩu?',
+                          'forgot_password'.tr(),
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? PaletteDark.whiteColor : Colors.black,
+                            color: isDark
+                                ? PaletteDark.whiteColor
+                                : Colors.black,
                           ),
                         ),
                       ),
@@ -268,7 +338,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       onPressed: _loading
                           ? null
                           : () {
-                              if (_formKey.currentState?.validate() ?? false) _login();
+                              if (_formKey.currentState?.validate() ?? false) {
+                                _login();
+                              }
                             },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: isDark ? Colors.white : Colors.black,
@@ -287,8 +359,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: isDark ? Colors.black : Colors.white,
                               ),
                             )
-                          : const Text(
-                              'Đăng nhập',
+                          : Text(
+                              'login'.tr(),
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -302,22 +374,28 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       Expanded(
                         child: Divider(
-                          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                          color: isDark
+                              ? Colors.grey.shade700
+                              : Colors.grey.shade300,
                         ),
                       ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
-                          'HOẶC',
+                          'or'.tr(),
                           style: TextStyle(
                             fontSize: 14,
-                            color: isDark ? PaletteDark.subtitleText : PaletteLight.subtitleText,
+                            color: isDark
+                                ? PaletteDark.subtitleText
+                                : PaletteLight.subtitleText,
                           ),
                         ),
                       ),
                       Expanded(
                         child: Divider(
-                          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                          color: isDark
+                              ? Colors.grey.shade700
+                              : Colors.grey.shade300,
                         ),
                       ),
                     ],
@@ -327,10 +405,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     width: double.infinity,
                     height: 56,
                     child: OutlinedButton.icon(
-                      onPressed: () {},
+                      onPressed: _loading ? null : _loginWithGoogle,
                       icon: const Icon(Icons.g_mobiledata, size: 28),
-                      label: const Text(
-                        'Tiếp tục với Google',
+                      label: Text(
+                        'continue_google'.tr(),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
@@ -338,9 +416,13 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: isDark ? PaletteDark.whiteColor : Colors.black87,
+                        foregroundColor: isDark
+                            ? PaletteDark.whiteColor
+                            : Colors.black87,
                         side: BorderSide(
-                          color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                          color: isDark
+                              ? Colors.grey.shade700
+                              : Colors.grey.shade300,
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -356,18 +438,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            'Chưa có tài khoản? ',
+                            'no_account'.tr(),
                             style: TextStyle(
                               fontSize: 14,
-                              color: isDark ? PaletteDark.subtitleText : PaletteLight.subtitleText,
+                              color: isDark
+                                  ? PaletteDark.subtitleText
+                                  : PaletteLight.subtitleText,
                             ),
                           ),
                           Text(
-                            'Đăng ký',
+                            'register'.tr(),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: isDark ? PaletteDark.whiteColor : Colors.black,
+                              color: isDark
+                                  ? PaletteDark.whiteColor
+                                  : Colors.black,
                             ),
                           ),
                         ],

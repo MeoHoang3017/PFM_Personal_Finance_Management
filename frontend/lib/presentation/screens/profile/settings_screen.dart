@@ -1,6 +1,8 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
+import '../../../core/preferences/app_preferences.dart';
 import '../../../core/utils/app_toast.dart';
 import '../../../data/models/auth_models.dart';
 import '../../../data/models/user_models.dart';
@@ -73,7 +75,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() => _loading = false);
       if (res.isSuccess && res.result != null) {
         final p = res.result!;
-        await getIt<AuthService>().updateStoredUser(UserInfo(
+        final userInfo = UserInfo(
           id: p.id,
           username: p.username,
           email: p.email,
@@ -81,17 +83,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           language: p.language,
           currency: p.currency,
           avatarUrl: p.avatarUrl,
-        ));
+        );
+        await getIt<AuthService>().updateStoredUser(userInfo);
+        getIt<AppPreferences>().updateFromUser(userInfo);
+        await context.setLocale(Locale(_language));
         if (!mounted) return;
         Navigator.pop(context, true);
-        AppToast.showSuccess(context, 'Đã lưu cài đặt');
+        AppToast.showSuccess(context, 'settings_saved'.tr());
       } else {
         setState(() => _errorMessage = res.message);
       }
     } catch (_) {
       if (mounted) setState(() {
         _loading = false;
-        _errorMessage = 'Lỗi kết nối';
+        _errorMessage = 'error_connection'.tr();
       });
     }
   }
@@ -100,12 +105,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     if (_loadingData) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Cài đặt')),
+        appBar: AppBar(title: Text('settings'.tr())),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Cài đặt')),
+      appBar: AppBar(title: Text('settings'.tr())),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -125,21 +130,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
               DropdownButtonFormField<String>(
                 value: _theme,
-                decoration: const InputDecoration(labelText: 'Giao diện', border: OutlineInputBorder()),
-                items: _themes.map((t) => DropdownMenuItem(value: t, child: Text(t == 'light' ? 'Sáng' : 'Tối'))).toList(),
+                decoration: InputDecoration(labelText: 'theme_label'.tr(), border: const OutlineInputBorder()),
+                items: _themes.map((t) => DropdownMenuItem(value: t, child: Text(t == 'light' ? 'theme_light'.tr() : 'theme_dark'.tr()))).toList(),
                 onChanged: (v) => setState(() => _theme = v ?? _theme),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _language,
-                decoration: const InputDecoration(labelText: 'Ngôn ngữ', border: OutlineInputBorder()),
-                items: _languages.map((t) => DropdownMenuItem(value: t, child: Text(t == 'vi' ? 'Tiếng Việt' : 'English'))).toList(),
+                decoration: InputDecoration(labelText: 'language_label'.tr(), border: const OutlineInputBorder()),
+                items: _languages.map((t) => DropdownMenuItem(value: t, child: Text(t == 'vi' ? 'lang_vi'.tr() : 'lang_en'.tr()))).toList(),
                 onChanged: (v) => setState(() => _language = v ?? _language),
               ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _currency,
-                decoration: const InputDecoration(labelText: 'Đơn vị tiền tệ', border: OutlineInputBorder()),
+                decoration: InputDecoration(labelText: 'currency_label'.tr(), border: const OutlineInputBorder()),
                 items: _currencies.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                 onChanged: (v) => setState(() => _currency = v ?? _currency),
               ),
@@ -148,7 +153,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onPressed: _loading ? null : _save,
                 child: _loading
                     ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Lưu'),
+                    : Text('save'.tr()),
               ),
             ],
           ),

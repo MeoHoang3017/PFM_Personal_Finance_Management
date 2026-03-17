@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -30,7 +31,7 @@ class GetStartedScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               Text(
-                'Quản lý tài chính',
+                'app_title'.tr(),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.headlineMedium?.copyWith(
                   fontWeight: FontWeight.w600,
@@ -41,7 +42,7 @@ class GetStartedScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'Theo dõi thu chi, lập ngân sách và đạt mục tiêu tài chính',
+                'app_subtitle'.tr(),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: isDark ? PaletteDark.subtitleText : PaletteLight.subtitleText,
@@ -62,8 +63,8 @@ class GetStartedScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text(
-                    'Bắt đầu',
+                  child: Text(
+                    'start'.tr(),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -79,25 +80,13 @@ class GetStartedScreen extends StatelessWidget {
                   foregroundColor: (theme.textTheme.bodyMedium?.color)?.withValues(alpha: 0.7),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Đã có tài khoản? ',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDark ? PaletteDark.subtitleText : PaletteLight.subtitleText,
-                      ),
-                    ),
-                    Text(
-                      'Đăng nhập',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : Colors.black,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  'get_started_login'.tr(),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
                 ),
               ),
               const SizedBox(height: 24),

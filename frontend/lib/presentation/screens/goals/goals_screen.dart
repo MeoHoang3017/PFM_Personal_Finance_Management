@@ -1,7 +1,9 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
 import '../../../core/theme/theme_palette.dart';
+import '../../../core/utils/currency_format.dart';
 import '../../../core/utils/app_toast.dart';
 import '../../../data/models/goal_models.dart';
 import '../../../data/services/goal_service.dart';
@@ -42,7 +44,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
     } catch (_) {
       if (mounted) setState(() {
         _loading = false;
-        _error = 'Không tải được danh sách mục tiêu';
+        _error = 'error_load_goals'.tr();
       });
     }
   }
@@ -61,14 +63,14 @@ class _GoalsScreenState extends State<GoalsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Xóa mục tiêu'),
-        content: Text('Bạn có chắc muốn xóa mục tiêu "${g.title}"?'),
+        title: Text('delete_goal'.tr()),
+        content: Text('delete_goal_confirm'.tr(namedArgs: {'title': g.title})),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('cancel'.tr())),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
-            child: const Text('Xóa'),
+            child: Text('delete'.tr()),
           ),
         ],
       ),
@@ -78,7 +80,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
     if (mounted) {
       if (res.isSuccess) {
         _load();
-        AppToast.showSuccess(context, 'Đã xóa mục tiêu');
+        AppToast.showSuccess(context, 'goal_deleted'.tr());
       } else {
         AppToast.showError(context, res.message);
       }
@@ -91,7 +93,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
     return Scaffold(
       backgroundColor: p.backgroundColor,
       appBar: AppBar(
-        title: Text('Mục tiêu', style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600)),
+        title: Text('goals_screen'.tr(), style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600)),
         backgroundColor: p.appBarBg,
         elevation: 0,
         foregroundColor: p.primaryText,
@@ -117,7 +119,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                           children: [
                             Text(_error!, style: TextStyle(color: p.errorColor), textAlign: TextAlign.center),
                             const SizedBox(height: 16),
-                            FilledButton(onPressed: _load, child: const Text('Thử lại')),
+                            FilledButton(onPressed: _load, child: Text('retry'.tr())),
                           ],
                         ),
                       )
@@ -159,8 +161,8 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                               if (v == 'delete') _confirmDelete(g);
                                             },
                                             itemBuilder: (ctx) => [
-                                              const PopupMenuItem(value: 'edit', child: Text('Sửa')),
-                                              const PopupMenuItem(value: 'delete', child: Text('Xóa')),
+                                              PopupMenuItem(value: 'edit', child: Text('edit'.tr())),
+                                              PopupMenuItem(value: 'delete', child: Text('delete'.tr())),
                                             ],
                                           ),
                                         ],
@@ -173,7 +175,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                       ),
                                       const SizedBox(height: 6),
                                       Text(
-                                        '${g.currentAmount.toStringAsFixed(0)} / ${g.targetAmount.toStringAsFixed(0)} ₫ · Đến ${g.dueDate.day}/${g.dueDate.month}/${g.dueDate.year}',
+                                        '${formatCurrency(g.currentAmount)} / ${formatCurrency(g.targetAmount)} · ${'goal_due'.tr()} ${g.dueDate.day}/${g.dueDate.month}/${g.dueDate.year}',
                                         style: TextStyle(color: p.subtitleText, fontSize: 12),
                                       ),
                                     ],

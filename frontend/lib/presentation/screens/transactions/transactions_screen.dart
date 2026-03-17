@@ -1,8 +1,10 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
 import '../../../core/theme/theme_palette.dart';
 import '../../../core/utils/app_toast.dart';
+import '../../../core/utils/currency_format.dart';
 import '../../../core/utils/monthly_report_helper.dart';
 import '../../../data/models/category_models.dart';
 import '../../../data/models/transaction_models.dart';
@@ -15,7 +17,10 @@ import 'transaction_form_screen.dart';
 enum _FilterType { income, expense, all }
 
 class TransactionsScreen extends StatefulWidget {
-  const TransactionsScreen({super.key});
+  /// Gọi khi đã lưu giao dịch thành công (để refresh Dashboard, Budgets).
+  final VoidCallback? onTransactionSaved;
+
+  const TransactionsScreen({super.key, this.onTransactionSaved});
 
   @override
   State<TransactionsScreen> createState() => _TransactionsScreenState();
@@ -30,24 +35,57 @@ class _TransactionsScreenState extends State<TransactionsScreen>
 
   late TabController _tabController;
   final List<DateTime> _months = last12MonthsFromNow();
+  int _lastFetchedTabIndex = -1;
 
   _FilterType _filterType = _FilterType.all;
-  String? _selectedCategoryName; // null = Tất cả danh mục
+  String? _selectedCategoryId; // null = Tất cả danh mục
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: _months.length, vsync: this);
-    _load();
+    _tabController.addListener(_onTabChanged);
+    _loadForCurrentTab();
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
   }
 
-  Future<void> _load() async {
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging) {
+      final idx = _tabController.index;
+      if (idx >= 0 && idx < _months.length && idx != _lastFetchedTabIndex) {
+        _loadForCurrentTab();
+      }
+    }
+  }
+
+  /// Trả về [startDate, endDate] cho tháng đang chọn (tab). Tháng hiện tại: endDate = hôm nay.
+  (DateTime, DateTime) _dateRangeForTab(int tabIndex) {
+    final d = _months[tabIndex];
+    final startDate = DateTime(d.year, d.month, 1);
+    final now = DateTime.now();
+    final DateTime endDate;
+    if (d.month == now.month && d.year == now.year) {
+      endDate = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
+    } else {
+      endDate = DateTime(d.year, d.month + 1, 0, 23, 59, 59, 999);
+    }
+    return (startDate, endDate);
+  }
+
+  /// Fetch giao dịch theo tháng của tab đang chọn từ backend.
+  Future<void> _loadForCurrentTab() async {
+    if (!mounted) return;
+    final tabIndex = _tabController.index;
+    if (tabIndex < 0 || tabIndex >= _months.length) return;
+    _lastFetchedTabIndex = tabIndex;
+    final (startDate, endDate) = _dateRangeForTab(tabIndex);
+
     setState(() {
       _loading = true;
       _error = null;
@@ -56,6 +94,8 @@ class _TransactionsScreenState extends State<TransactionsScreen>
       final txRes = await getIt<TransactionService>().getTransactions(
         page: 1,
         pageSize: 500,
+        startDate: startDate,
+        endDate: endDate,
       );
       var catRes = await getIt<CategoryService>().getUserCategories();
       if (!catRes.isSuccess || catRes.result == null || catRes.result!.isEmpty) {
@@ -72,30 +112,29 @@ class _TransactionsScreenState extends State<TransactionsScreen>
       if (mounted) {
         setState(() {
           _loading = false;
-          _error = 'Không tải được dữ liệu';
+          _error = 'error_load_data'.tr();
         });
       }
     }
   }
 
-  /// Giao dịch thuộc tháng đang chọn (tháng hiện tại: từ 1 đến hôm nay).
-  List<TransactionModel> _transactionsForCurrentTab() {
-    final d = _months[_tabController.index];
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    var list = transactionsInMonth(_transactions, d.month, d.year);
-    if (d.month == now.month && d.year == now.year) {
-      list = list.where((t) {
-        final tDay = DateTime(t.date.year, t.date.month, t.date.day);
-        return tDay.compareTo(today) <= 0;
-      }).toList();
+  /// Gọi lại khi cần refresh (sau thêm/sửa/xóa). Fetch lại đúng tháng tab hiện tại.
+  Future<void> _load() => _loadForCurrentTab();
+
+  /// Tổng Thu, Chi của tháng đang xem (từ _transactions). Doanh thu = Thu - Chi.
+  (double income, double expense, double net) _monthTotals() {
+    double income = 0;
+    double expense = 0;
+    for (final t in _transactions) {
+      if (t.type == TransactionType.income) income += t.amount;
+      else if (t.type == TransactionType.expense) expense += t.amount;
     }
-    return list;
+    return (income, expense, income - expense);
   }
 
-  /// Áp dụng filter loại (Thu/Chi/Tổng) và danh mục.
+  /// Áp dụng filter loại (Thu/Chi/Tổng) và danh mục. Dữ liệu _transactions đã là theo tháng từ backend.
   List<TransactionModel> _filteredTransactions() {
-    var list = _transactionsForCurrentTab();
+    var list = List<TransactionModel>.from(_transactions);
     switch (_filterType) {
       case _FilterType.income:
         list = list.where((t) => t.type == TransactionType.income).toList();
@@ -106,20 +145,39 @@ class _TransactionsScreenState extends State<TransactionsScreen>
       case _FilterType.all:
         break;
     }
-    if (_selectedCategoryName != null && _selectedCategoryName!.isNotEmpty) {
-      list = list.where((t) => t.category == _selectedCategoryName).toList();
+    if (_selectedCategoryId != null && _selectedCategoryId!.isNotEmpty) {
+      list = list.where((t) => t.category == _selectedCategoryId).toList();
     }
     return transactionsSortedByDateDescending(list);
   }
 
   Future<void> _openForm([TransactionModel? transaction]) async {
-    final result = await Navigator.push<bool>(
+    final result = await Navigator.push<TransactionModel?>(
       context,
       MaterialPageRoute(
         builder: (context) => TransactionFormScreen(transaction: transaction),
       ),
     );
-    if (result == true) _load();
+    if (result != null) {
+      _mergeTransactionFromBackend(result);
+      widget.onTransactionSaved?.call();
+    }
+  }
+
+  /// Cập nhật list và tổng từ kết quả backend (thêm mới hoặc sửa).
+  void _mergeTransactionFromBackend(TransactionModel tx) {
+    final tabIndex = _tabController.index;
+    if (tabIndex < 0 || tabIndex >= _months.length) return;
+    final (startDate, endDate) = _dateRangeForTab(tabIndex);
+    final inRange = tx.date.compareTo(startDate) >= 0 && tx.date.compareTo(endDate) <= 0;
+    final idx = _transactions.indexWhere((t) => t.id == tx.id);
+    setState(() {
+      if (idx >= 0) {
+        _transactions = List.from(_transactions)..[idx] = tx;
+      } else if (inRange) {
+        _transactions = [tx, ..._transactions];
+      }
+    });
   }
 
   Future<void> _duplicate(TransactionModel t) async {
@@ -129,15 +187,16 @@ class _TransactionsScreenState extends State<TransactionsScreen>
       if (!mounted) return;
       setState(() => _loading = false);
       if (res.isSuccess) {
-        _load();
-        AppToast.showSuccess(context, 'Đã nhân bản giao dịch');
+        if (res.result != null) _mergeTransactionFromBackend(res.result!);
+        widget.onTransactionSaved?.call();
+        AppToast.showSuccess(context, 'transaction_duplicated'.tr());
       } else {
         AppToast.showError(context, res.message);
       }
     } catch (_) {
       if (mounted) {
         setState(() => _loading = false);
-        AppToast.showError(context, 'Không thể nhân bản');
+        AppToast.showError(context, 'error_duplicate'.tr());
       }
     }
   }
@@ -146,14 +205,14 @@ class _TransactionsScreenState extends State<TransactionsScreen>
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Xóa giao dịch'),
-        content: const Text('Bạn có chắc muốn xóa giao dịch này?'),
+        title: Text('delete_transaction'.tr()),
+        content: Text('delete_transaction_confirm'.tr()),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('cancel'.tr())),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
-            child: const Text('Xóa'),
+            child: Text('delete'.tr()),
           ),
         ],
       ),
@@ -162,8 +221,9 @@ class _TransactionsScreenState extends State<TransactionsScreen>
     final res = await getIt<TransactionService>().deleteTransaction(t.id);
     if (mounted) {
       if (res.isSuccess) {
-        _load();
-        AppToast.showSuccess(context, 'Đã xóa giao dịch');
+        setState(() => _transactions = _transactions.where((x) => x.id != t.id).toList());
+        widget.onTransactionSaved?.call();
+        AppToast.showSuccess(context, 'transaction_deleted'.tr());
       } else {
         AppToast.showError(context, res.message);
       }
@@ -173,11 +233,11 @@ class _TransactionsScreenState extends State<TransactionsScreen>
   String _typeLabel(TransactionType type) {
     switch (type) {
       case TransactionType.income:
-        return 'Thu';
+        return 'type_income'.tr();
       case TransactionType.expense:
-        return 'Chi';
+        return 'type_expense'.tr();
       case TransactionType.transfer:
-        return 'Chuyển';
+        return 'type_transfer'.tr();
     }
   }
 
@@ -187,7 +247,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
     return Scaffold(
       backgroundColor: p.backgroundColor,
       appBar: AppBar(
-        title: Text('Giao dịch', style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600)),
+        title: Text('transactions'.tr(), style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600)),
         backgroundColor: p.appBarBg,
         elevation: 0,
         foregroundColor: p.primaryText,
@@ -215,90 +275,29 @@ class _TransactionsScreenState extends State<TransactionsScreen>
               .toList(),
         ),
       ),
-      body: Column(
-        children: [
-          Container(
-            height: 3,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [p.primaryAction, p.expenseColor],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
-            ),
-          ),
-          // Chip filter Thu / Chi / Tổng + Dropdown danh mục
-          Container(
-            color: p.sectionContentBg,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: _FilterChip(
-                        label: 'Tổng',
-                        selected: _filterType == _FilterType.all,
-                        onTap: () => setState(() => _filterType = _FilterType.all),
-                        p: p,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _FilterChip(
-                        label: 'Thu',
-                        selected: _filterType == _FilterType.income,
-                        color: p.incomeColor,
-                        onTap: () => setState(() => _filterType = _FilterType.income),
-                        p: p,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _FilterChip(
-                        label: 'Chi',
-                        selected: _filterType == _FilterType.expense,
-                        color: p.expenseColor,
-                        onTap: () => setState(() => _filterType = _FilterType.expense),
-                        p: p,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<String>(
-                  value: _selectedCategoryName,
-                  decoration: InputDecoration(
-                    labelText: 'Danh mục',
-                    labelStyle: TextStyle(color: p.subtitleText, fontSize: 13),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    filled: true,
-                    fillColor: p.cardSurface,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: p.borderColor),
-                    ),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final maxHeaderHeight = constraints.maxHeight * 0.40;
+          return Column(
+            children: [
+              Container(
+                height: 3,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [p.primaryAction, p.expenseColor],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
                   ),
-                  isExpanded: true,
-                  hint: Text('Tất cả danh mục', style: TextStyle(color: p.subtitleText, fontSize: 14)),
-                  items: [
-                    DropdownMenuItem<String>(
-                      value: null,
-                      child: Text('Tất cả danh mục', style: TextStyle(color: p.primaryText)),
-                    ),
-                    ..._categories.map((c) => DropdownMenuItem<String>(
-                          value: c.name,
-                          child: Text(c.name, style: TextStyle(color: p.primaryText)),
-                        )),
-                  ],
-                  onChanged: (v) => setState(() => _selectedCategoryName = v),
                 ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: _loading
+              ),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: maxHeaderHeight),
+                child: SingleChildScrollView(
+                  child: _buildCompactFilterAndSummary(context, p),
+                ),
+              ),
+              Expanded(
+                child: _loading
                 ? Center(child: CircularProgressIndicator(color: p.primaryAction))
                 : _error != null
                     ? Center(
@@ -307,13 +306,15 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                           children: [
                             Text(_error!, style: TextStyle(color: p.errorColor), textAlign: TextAlign.center),
                             const SizedBox(height: 16),
-                            FilledButton(onPressed: _load, child: const Text('Thử lại')),
+                            FilledButton(onPressed: _load, child: Text('retry'.tr())),
                           ],
                         ),
                       )
                     : _buildTabContent(p),
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
       floatingActionButton: _transactions.isNotEmpty
           ? FloatingActionButton(
@@ -322,6 +323,143 @@ class _TransactionsScreenState extends State<TransactionsScreen>
               child: const Icon(Icons.add),
             )
           : null,
+    );
+  }
+
+  /// Khối thu gọn: filter (chips + dropdown) + dòng Thu / Chi / Doanh thu ở dưới.
+  Widget _buildCompactFilterAndSummary(BuildContext context, PaletteColors p) {
+    final (income, expense, net) = _monthTotals();
+    return Container(
+      color: p.sectionContentBg,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              _SmallFilterChip(
+                label: 'filter_all'.tr(),
+                selected: _filterType == _FilterType.all,
+                onTap: () => setState(() => _filterType = _FilterType.all),
+                p: p,
+              ),
+              const SizedBox(width: 8),
+              _SmallFilterChip(
+                label: 'type_income'.tr(),
+                selected: _filterType == _FilterType.income,
+                color: p.incomeColor,
+                onTap: () => setState(() => _filterType = _FilterType.income),
+                p: p,
+              ),
+              const SizedBox(width: 8),
+              _SmallFilterChip(
+                label: 'type_expense'.tr(),
+                selected: _filterType == _FilterType.expense,
+                color: p.expenseColor,
+                onTap: () => setState(() => _filterType = _FilterType.expense),
+                p: p,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String?>(
+            value: _selectedCategoryId,
+            decoration: InputDecoration(
+              labelText: 'category'.tr(),
+              labelStyle: TextStyle(color: p.subtitleText, fontSize: 12),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              filled: true,
+              fillColor: p.cardSurface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(color: p.borderColor),
+              ),
+            ),
+            isExpanded: true,
+            hint: Text('all_categories'.tr(), style: TextStyle(color: p.subtitleText, fontSize: 13)),
+            items: [
+              DropdownMenuItem<String?>(
+                value: null,
+                child: Text('all_categories'.tr(), style: TextStyle(color: p.primaryText, fontSize: 13)),
+              ),
+              ..._categories.map((c) => DropdownMenuItem<String?>(
+                    value: c.id,
+                    child: Text(c.name, style: TextStyle(color: p.primaryText, fontSize: 13)),
+                  )),
+            ],
+            onChanged: (v) => setState(() => _selectedCategoryId = v),
+          ),
+          const SizedBox(height: 8),
+          // Dòng Thu / Chi / Doanh thu thu gọn
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: p.cardSurface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: p.borderColor.withValues(alpha: 0.5)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        context.tr('month_income'),
+                        style: TextStyle(color: p.subtitleText, fontSize: 10),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        formatCurrency(income, compact: true),
+                        style: TextStyle(color: p.incomeColor, fontWeight: FontWeight.w600, fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(width: 1, height: 28, color: p.borderColor.withValues(alpha: 0.6)),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(context.tr('month_expense'), style: TextStyle(color: p.subtitleText, fontSize: 10)),
+                      const SizedBox(height: 2),
+                      Text(
+                        formatCurrency(expense, compact: true),
+                        style: TextStyle(color: p.expenseColor, fontWeight: FontWeight.w600, fontSize: 12),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(width: 1, height: 28, color: p.borderColor.withValues(alpha: 0.6)),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(context.tr('month_net'), style: TextStyle(color: p.subtitleText, fontSize: 10)),
+                      const SizedBox(height: 2),
+                      Text(
+                        formatCurrency(net, compact: true),
+                        style: TextStyle(
+                          color: net >= 0 ? p.incomeColor : p.expenseColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -335,7 +473,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
             Icon(Icons.receipt_long_outlined, size: 64, color: p.iconMuted),
             const SizedBox(height: 16),
             Text(
-              'Không có giao dịch trong khoảng đã chọn',
+              'no_transactions'.tr(),
               style: TextStyle(color: p.subtitleText, fontSize: 15),
               textAlign: TextAlign.center,
             ),
@@ -343,7 +481,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
             FilledButton.icon(
               onPressed: () => _openForm(),
               icon: const Icon(Icons.add),
-              label: const Text('Thêm giao dịch'),
+              label: Text('add_transaction_btn'.tr()),
             ),
           ],
         ),
@@ -388,14 +526,14 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              t.description.isEmpty ? 'Không mô tả' : t.description,
+                              t.description.isEmpty ? 'no_description'.tr() : t.description,
                               style: TextStyle(color: p.primaryText, fontSize: 15, fontWeight: FontWeight.w600),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '${_typeLabel(t.type)} · ${t.date.day}/${t.date.month}/${t.date.year}${t.category.isNotEmpty ? ' · ${t.category}' : ''}',
+                              '${_typeLabel(t.type)} · ${t.date.day}/${t.date.month}/${t.date.year}${t.categoryDisplay.isNotEmpty ? ' · ${t.categoryDisplay}' : ''}',
                               style: TextStyle(color: p.subtitleText, fontSize: 12),
                             ),
                           ],
@@ -403,8 +541,10 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        '${t.amount.toStringAsFixed(0)} ₫',
+                        formatCurrency(t.amount),
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: typeColor),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       PopupMenuButton<String>(
                         icon: Icon(Icons.more_vert, color: p.iconMuted),
@@ -414,9 +554,9 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                           if (v == 'delete') _confirmDelete(t);
                         },
                         itemBuilder: (ctx) => [
-                          const PopupMenuItem(value: 'edit', child: Text('Sửa')),
-                          const PopupMenuItem(value: 'duplicate', child: Text('Nhân bản')),
-                          const PopupMenuItem(value: 'delete', child: Text('Xóa')),
+                          PopupMenuItem(value: 'edit', child: Text('edit'.tr())),
+                          PopupMenuItem(value: 'duplicate', child: Text('duplicate'.tr())),
+                          PopupMenuItem(value: 'delete', child: Text('delete'.tr())),
                         ],
                       ),
                     ],
@@ -431,14 +571,15 @@ class _TransactionsScreenState extends State<TransactionsScreen>
   }
 }
 
-class _FilterChip extends StatelessWidget {
+/// Chip lọc nhỏ gọn (All / Thu / Chi).
+class _SmallFilterChip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
   final PaletteColors p;
   final Color? color;
 
-  const _FilterChip({
+  const _SmallFilterChip({
     required this.label,
     required this.selected,
     required this.onTap,
@@ -453,17 +594,16 @@ class _FilterChip extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(20),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
-            color: selected ? chipColor.withValues(alpha: 0.2) : p.borderColor.withValues(alpha: 0.4),
-            borderRadius: BorderRadius.circular(10),
+            color: selected ? chipColor.withValues(alpha: 0.18) : p.borderColor.withValues(alpha: 0.35),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: selected ? chipColor : p.borderColor.withValues(alpha: 0.5),
-              width: selected ? 1.5 : 1,
+              width: selected ? 1.2 : 1,
             ),
           ),
           child: Text(
@@ -471,7 +611,7 @@ class _FilterChip extends StatelessWidget {
             style: TextStyle(
               color: selected ? chipColor : p.subtitleText,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-              fontSize: 14,
+              fontSize: 12,
             ),
           ),
         ),

@@ -77,6 +77,13 @@ export async function listCategoriesByUser(
 export async function createCategory(payload: CreateCategoryData): Promise<CategoryResponse> {
   const { name, type, parentCategory, user, icon, color } = payload;
 
+  if (parentCategory) {
+    const parentExists = await Category.findById(parentCategory).lean();
+    if (!parentExists) {
+      throw new Error("Parent category not found");
+    }
+  }
+
   const category = new Category({
     name,
     type,
@@ -128,6 +135,22 @@ export async function updateCategory(id: string, payload: UpdateCategoryData): P
     throw new Error("Cannot update system category");
   }
 
+  // Prevent parent = self
+  if (payload.parentCategory !== undefined && payload.parentCategory === id) {
+    throw new Error("Parent category cannot be itself");
+  }
+  // Prevent circular: new parent must not be self or a descendant of self
+  if (payload.parentCategory !== undefined && payload.parentCategory) {
+    let currentId: mongoose.Types.ObjectId | null = new mongoose.Types.ObjectId(payload.parentCategory);
+    while (currentId) {
+      if (currentId.toString() === id) {
+        throw new Error("Parent cannot be a sub-category of this category (circular)");
+      }
+      const parentDoc = await Category.findById(currentId).select("parentCategory").lean();
+      currentId = parentDoc?.parentCategory ? new mongoose.Types.ObjectId((parentDoc as any).parentCategory) : null;
+    }
+  }
+
   const update: any = {};
   if (payload.name !== undefined) update.name = payload.name;
   if (payload.type !== undefined) update.type = payload.type;
@@ -151,12 +174,16 @@ export async function updateCategory(id: string, payload: UpdateCategoryData): P
   };
 }
 
-// Delete category (không cho xóa danh mục hệ thống user = null)
+// Delete category (không cho xóa danh mục hệ thống user = null; không xóa nếu còn danh mục con)
 export async function deleteCategory(id: string): Promise<{ deleted: boolean }> {
   const existing = await Category.findById(id).lean();
   if (!existing) return { deleted: false };
   if (existing.user == null) {
     throw new Error("Cannot delete system category");
+  }
+  const hasChildren = await Category.countDocuments({ parentCategory: new mongoose.Types.ObjectId(id) });
+  if (hasChildren > 0) {
+    throw new Error("Cannot delete category that has sub-categories. Remove or move sub-categories first.");
   }
   const res = await Category.findByIdAndDelete(id);
   return { deleted: !!res };

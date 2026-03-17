@@ -24,10 +24,11 @@ class CategoryService {
     }
   }
 
-  /// GET /categories/user/list - categories của user (sau khi đăng nhập)
-  Future<ApiResponse<List<CategoryModel>>> getUserCategories() async {
+  /// GET /categories/user/list - categories của user (sau khi đăng nhập).
+  /// [pageSize] lớn (vd. 500) để lấy hết danh mục khi xây cây cha-con.
+  Future<ApiResponse<List<CategoryModel>>> getUserCategories({int page = 1, int pageSize = 500}) async {
     try {
-      final res = await _api.dio.get('/categories/user/list');
+      final res = await _api.dio.get('/categories/user/list', queryParameters: {'page': page, 'pageSize': pageSize});
       final data = res.data as Map<String, dynamic>;
       final result = data['result'];
       if (result == null) return ApiResponse(code: data['code'] as int? ?? 200, message: data['message'] as String? ?? '', result: const []);

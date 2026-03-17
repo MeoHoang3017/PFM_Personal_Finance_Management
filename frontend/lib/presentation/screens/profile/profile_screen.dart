@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -67,14 +68,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Xóa tài khoản'),
-        content: const Text('Bạn có chắc muốn xóa tài khoản? Hành động này không thể hoàn tác.'),
+        title: Text('delete_account'.tr()),
+        content: Text('delete_account_confirm'.tr()),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Hủy')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('cancel'.tr())),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
-            child: const Text('Xóa'),
+            child: Text('delete'.tr()),
           ),
         ],
       ),
@@ -83,7 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final res = await getIt<UserService>().deleteProfile();
     if (!mounted) return;
     if (res.isSuccess) {
-      AppToast.showSuccess(context, 'Đã xóa tài khoản');
+      AppToast.showSuccess(context, 'account_deleted'.tr());
       await getIt<AuthService>().logout();
       if (!mounted) return;
       context.go('/login');
@@ -99,10 +100,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return Scaffold(
         backgroundColor: p.backgroundColor,
         appBar: AppBar(
-          title: Text('Cá nhân', style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600)),
-          backgroundColor: p.appBarBg,
-          elevation: 0,
-          foregroundColor: p.primaryText,
+        title: Text('nav_profile'.tr(), style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600)),
+        backgroundColor: p.appBarBg,
+        elevation: 0,
+        foregroundColor: p.primaryText,
         ),
         body: Center(child: CircularProgressIndicator(color: p.primaryAction)),
       );
@@ -111,7 +112,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       backgroundColor: p.backgroundColor,
       appBar: AppBar(
-        title: Text('Cá nhân', style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600)),
+        title: Text('nav_profile'.tr(), style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600)),
         backgroundColor: p.appBarBg,
         elevation: 0,
         foregroundColor: p.primaryText,
@@ -153,7 +154,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   padding: EdgeInsets.zero,
                   child: Column(
                     children: [
-                      _profileTile(context, p, Icons.person_outline, 'Chỉnh sửa hồ sơ', () async {
+                      _profileTile(context, p, Icons.person_outline, 'profile_edit'.tr(), () async {
                         final result = await Navigator.push<bool>(
                           context,
                           MaterialPageRoute(builder: (context) => EditProfileScreen(initialProfile: _profile)),
@@ -161,7 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         if (result == true) _load();
                       }),
                       Divider(height: 1, color: p.borderColor),
-                      _profileTile(context, p, Icons.settings_outlined, 'Cài đặt', () async {
+                      _profileTile(context, p, Icons.settings_outlined, 'settings'.tr(), () async {
                         final result = await Navigator.push<bool>(
                           context,
                           MaterialPageRoute(builder: (context) => SettingsScreen(initialProfile: _profile)),
@@ -169,23 +170,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         if (result == true) _load();
                       }),
                       Divider(height: 1, color: p.borderColor),
-                      _profileTile(context, p, Icons.lock_outline, 'Đổi mật khẩu', () {
+                      _profileTile(context, p, Icons.lock_outline, 'change_password'.tr(), () {
                         Navigator.push(context, MaterialPageRoute(builder: (context) => const ChangePasswordScreen()));
                       }),
                       Divider(height: 1, color: p.borderColor),
-                      _profileTile(context, p, Icons.category_outlined, 'Quản lý danh mục', () {
+                      _profileTile(context, p, Icons.category_outlined, 'manage_categories'.tr(), () {
                         Navigator.push(context, MaterialPageRoute(builder: (context) => const CategoriesScreen()));
                       }),
                       Divider(height: 1, color: p.borderColor),
-                      _profileTile(context, p, Icons.account_balance_wallet_outlined, 'Quản lý ví', () {
+                      _profileTile(context, p, Icons.account_balance_wallet_outlined, 'manage_wallets'.tr(), () {
                         Navigator.push(context, MaterialPageRoute(builder: (context) => const WalletsScreen()));
                       }),
                       Divider(height: 1, color: p.borderColor),
-                      _profileTile(context, p, Icons.flag_outlined, 'Mục tiêu', () {
+                      _profileTile(context, p, Icons.flag_outlined, 'goals'.tr(), () {
                         Navigator.push(context, MaterialPageRoute(builder: (context) => const GoalsScreen()));
                       }),
                       Divider(height: 1, color: p.borderColor),
-                      _profileTile(context, p, Icons.delete_outline, 'Xóa tài khoản', _confirmDeleteAccount, isDestructive: true),
+                      _profileTile(context, p, Icons.delete_outline, 'delete_account'.tr(), _confirmDeleteAccount, isDestructive: true),
                     ],
                   ),
                 ),
@@ -195,7 +196,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: FilledButton.icon(
                     onPressed: _logout,
                     icon: const Icon(Icons.logout, size: 20),
-                    label: const Text('Đăng xuất'),
+                    label: Text('logout'.tr()),
                     style: FilledButton.styleFrom(
                       backgroundColor: p.errorColor,
                       foregroundColor: Colors.white,

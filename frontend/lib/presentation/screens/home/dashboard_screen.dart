@@ -1,7 +1,9 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
 import '../../../core/theme/theme_palette.dart';
+import '../../../core/utils/currency_format.dart';
 import '../../../data/models/transaction_models.dart';
 import '../../../data/models/wallet_models.dart';
 import '../../../data/services/transaction_service.dart';
@@ -39,6 +41,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _load();
   }
 
+  /// Gọi từ bên ngoài (vd. sau khi lưu giao dịch) để tải lại dữ liệu.
+  void refresh() => _load();
+
   /// Tải ví và giao dịch từ backend. Chart, báo cáo (khi mở màn), top spending và giao dịch gần đây đều dùng dữ liệu thật từ API.
   Future<void> _load() async {
     setState(() {
@@ -68,21 +73,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) {
         setState(() {
           _loading = false;
-          _error = 'Không tải được dữ liệu';
+          _error = 'error_load_data'.tr();
         });
       }
     }
   }
 
-  String _formatBalance(double value) {
-    if (value.abs() >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(1)}M';
-    }
-    if (value.abs() >= 1000) {
-      return '${(value / 1000).toStringAsFixed(1)}K';
-    }
-    return value.toStringAsFixed(0);
-  }
+  String _formatBalance(double value) => formatCurrency(value, compact: true);
 
   List<TransactionModel> get _recentTransactions {
     final list = List<TransactionModel>.from(_transactions);
@@ -102,7 +99,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: Row(
           children: [
             Text(
-              '${_formatBalance(_totalBalance)} ₫',
+              _formatBalance(_totalBalance),
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -148,7 +145,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               textAlign: TextAlign.center,
                             ),
                             const SizedBox(height: 16),
-                            FilledButton(onPressed: _load, child: const Text('Thử lại')),
+                            FilledButton(onPressed: _load, child: Text('retry'.tr())),
                           ],
                         ),
                       )
@@ -168,8 +165,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     SectionHeader(
-                                      title: 'Ví của tôi',
-                                      actionText: 'Xem tất cả',
+                                      title: 'my_wallets'.tr(),
+                                      actionText: 'view_all'.tr(),
                                       onActionTap: () async {
                                         await Navigator.push(
                                           context,
@@ -185,7 +182,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       Padding(
                                         padding: const EdgeInsets.all(24),
                                         child: Text(
-                                          'Chưa có ví. Thêm ví từ tab Thêm.',
+                                          'no_wallets_hint'.tr(),
                                           style: TextStyle(color: p.subtitleText, fontSize: 14),
                                         ),
                                       )
@@ -214,8 +211,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     SectionHeader(
-                                      title: 'Báo cáo tháng này',
-                                      actionText: 'Xem báo cáo',
+                                      title: 'report_this_month'.tr(),
+                                      actionText: 'view_report'.tr(),
                                       onActionTap: () {
                                         Navigator.push(
                                           context,
@@ -254,8 +251,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     SectionHeader(
-                                      title: 'Giao dịch gần đây',
-                                      actionText: 'Xem tất cả',
+                                      title: 'recent_transactions'.tr(),
+                                      actionText: 'view_all'.tr(),
                                       onActionTap: widget.onViewAllTransactions,
                                     ),
                                     Divider(height: 1, color: p.borderColor),
@@ -263,7 +260,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       Padding(
                                         padding: const EdgeInsets.all(24),
                                         child: Text(
-                                          'Chưa có giao dịch.',
+                                          'no_transactions'.tr(),
                                           style: TextStyle(color: p.subtitleText, fontSize: 14),
                                         ),
                                       )

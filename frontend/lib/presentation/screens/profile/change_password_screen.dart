@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
@@ -45,7 +46,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       setState(() => _loading = false);
       if (res.isSuccess) {
         Navigator.pop(context, true);
-        AppToast.showSuccess(context, 'Đã đổi mật khẩu');
+        AppToast.showSuccess(context, 'password_changed'.tr());
       } else {
         setState(() => _errorMessage = res.message);
       }
@@ -60,7 +61,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Đổi mật khẩu')),
+      appBar: AppBar(title: Text('change_password'.tr())),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -83,34 +84,34 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 TextFormField(
                   controller: _currentController,
                   obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Mật khẩu hiện tại',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock_outline),
+                  decoration: InputDecoration(
+                    labelText: 'current_password'.tr(),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outline),
                   ),
-                  validator: (v) => v == null || v.isEmpty ? 'Nhập mật khẩu hiện tại' : null,
+                  validator: (v) => v == null || v.isEmpty ? 'hint_current_password'.tr() : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _newController,
                   obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Mật khẩu mới',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock_outline),
+                  decoration: InputDecoration(
+                    labelText: 'new_password'.tr(),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outline),
                   ),
-                  validator: (v) => v == null || v.length < 6 ? 'Mật khẩu tối thiểu 6 ký tự' : null,
+                  validator: (v) => v == null || v.length < 6 ? 'password_min_6'.tr() : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _confirmController,
                   obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Xác nhận mật khẩu mới',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock_outline),
+                  decoration: InputDecoration(
+                    labelText: 'confirm_new_password'.tr(),
+                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outline),
                   ),
-                  validator: (v) => v == null || v.isEmpty ? 'Nhập xác nhận mật khẩu' : null,
+                  validator: (v) => v == null || v.isEmpty ? 'hint_confirm_password_validation'.tr() : null,
                 ),
                 const SizedBox(height: 24),
                 FilledButton(
@@ -121,7 +122,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                         },
                   child: _loading
                       ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Đổi mật khẩu'),
+                      : Text('change_password'.tr()),
                 ),
               ],
             ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/theme_palette.dart';
+import '../../core/utils/currency_format.dart';
 import '../../data/models/wallet_models.dart';
 
 /// Một dòng ví trên homepage kiểu FinTracker.
@@ -12,7 +13,6 @@ class HomeWalletItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = pfmPaletteOf(context);
-    final formatted = _formatBalance(wallet.balance);
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       leading: CircleAvatar(
@@ -29,7 +29,7 @@ class HomeWalletItem extends StatelessWidget {
         ),
       ),
       trailing: Text(
-        '$formatted ₫',
+        formatCurrency(wallet.balance, compact: true),
         style: TextStyle(
           color: p.primaryText,
           fontWeight: FontWeight.bold,
@@ -37,15 +37,5 @@ class HomeWalletItem extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _formatBalance(double value) {
-    if (value.abs() >= 1000000) {
-      return '${(value / 1000000).toStringAsFixed(1)}M';
-    }
-    if (value.abs() >= 1000) {
-      return '${(value / 1000).toStringAsFixed(1)}K';
-    }
-    return value.toStringAsFixed(0);
   }
 }
