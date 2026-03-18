@@ -1,0 +1,29 @@
+SendOTPRequest:
+  type: object
+  required: [email, type]
+  properties:
+    email:
+      type: string
+      format: email
+      example: john@example.com
+    type:
+      type: string
+      enum: [register, forgot-password]
+      example: register
+
+VerifyOTPRequest:
+  type: object
+  required: [email, otp, type]
+  properties:
+    email:
+      type: string
+      format: email
+      example: john@example.com
+    otp:
+      type: string
+      example: "123456"
+    type:
+      type: string
+      enum: [register, forgot-password]
+      example: register
+

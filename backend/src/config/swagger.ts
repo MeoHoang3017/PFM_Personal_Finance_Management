@@ -1,355 +1,115 @@
-import swaggerJsdoc from "swagger-jsdoc";
+import YAML from "yamljs";
+import { join } from "path";
+import { readFileSync } from "fs";
 
-const options: swaggerJsdoc.Options = {
-  definition: {
-    openapi: "3.0.0",
-    info: {
-      title: "Caro Game API",
-      version: "1.0.0",
-      description: "API documentation for Caro Game backend",
-      contact: {
-        name: "API Support",
-      },
-    },
-    servers: [
-      {
-        url: process.env.API_URL || "http://localhost:5000",
-        description: "Development server",
-      },
-      {
-        url: "http://localhost:5000",
-        description: "Local server",
-      },
-    ],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: "http",
-          scheme: "bearer",
-          bearerFormat: "JWT",
-          description: "Enter JWT token",
-        },
-      },
-      schemas: {
-        // Base Response Schema
-        BaseResponse: {
-          type: "object",
-          properties: {
-            code: {
-              type: "integer",
-              description: "HTTP status code",
-            },
-            message: {
-              type: "string",
-              description: "Response message",
-            },
-            result: {
-              type: "object",
-              nullable: true,
-              description: "Response data",
-            },
-            error: {
-              type: "object",
-              nullable: true,
-              description: "Error details",
-            },
-          },
-        },
-        // Auth Schemas
-        RegisterUser: {
-          type: "object",
-          required: ["username", "email", "password"],
-          properties: {
-            username: {
-              type: "string",
-              example: "johndoe",
-            },
-            email: {
-              type: "string",
-              format: "email",
-              example: "john@example.com",
-            },
-            password: {
-              type: "string",
-              format: "password",
-              minLength: 6,
-              example: "password123",
-            },
-          },
-        },
-        LoginUser: {
-          type: "object",
-          required: ["email", "password"],
-          properties: {
-            email: {
-              type: "string",
-              format: "email",
-              example: "john@example.com",
-            },
-            password: {
-              type: "string",
-              format: "password",
-              example: "password123",
-            },
-          },
-        },
-        // User Schemas
-        User: {
-          type: "object",
-          properties: {
-            _id: {
-              type: "string",
-              example: "507f1f77bcf86cd799439011",
-            },
-            username: {
-              type: "string",
-              example: "johndoe",
-            },
-            email: {
-              type: "string",
-              format: "email",
-              example: "john@example.com",
-            },
-            isGuest: {
-              type: "boolean",
-              example: false,
-            },
-            createdAt: {
-              type: "string",
-              format: "date-time",
-            },
-            updatedAt: {
-              type: "string",
-              format: "date-time",
-            },
-          },
-        },
-        // Room Schemas
-        CreateRoom: {
-          type: "object",
-          required: ["hostId"],
-          properties: {
-            hostId: {
-              type: "string",
-              example: "507f1f77bcf86cd799439011",
-            },
-            boardSize: {
-              type: "integer",
-              minimum: 10,
-              maximum: 20,
-              default: 15,
-              example: 15,
-            },
-            maxPlayers: {
-              type: "integer",
-              minimum: 2,
-              maximum: 4,
-              default: 2,
-              example: 2,
-            },
-            isPrivate: {
-              type: "boolean",
-              default: false,
-              example: false,
-            },
-            allowSpectators: {
-              type: "boolean",
-              default: true,
-              example: true,
-            },
-          },
-        },
-        JoinRoom: {
-          type: "object",
-          required: ["userId", "roomCode"],
-          properties: {
-            userId: {
-              type: "string",
-              example: "507f1f77bcf86cd799439011",
-            },
-            roomCode: {
-              type: "string",
-              example: "ABC123",
-            },
-          },
-        },
-        Room: {
-          type: "object",
-          properties: {
-            _id: {
-              type: "string",
-              example: "507f1f77bcf86cd799439011",
-            },
-            roomCode: {
-              type: "string",
-              example: "ABC123",
-            },
-            hostId: {
-              type: "string",
-              example: "507f1f77bcf86cd799439011",
-            },
-            players: {
-              type: "array",
-              items: {
-                type: "string",
-              },
-            },
-            maxPlayers: {
-              type: "integer",
-              example: 2,
-            },
-            boardSize: {
-              type: "integer",
-              example: 15,
-            },
-            status: {
-              type: "string",
-              enum: ["waiting", "playing", "finished"],
-              example: "waiting",
-            },
-            isPrivate: {
-              type: "boolean",
-              example: false,
-            },
-            allowSpectators: {
-              type: "boolean",
-              example: true,
-            },
-            matchId: {
-              type: "string",
-              nullable: true,
-              example: "507f1f77bcf86cd799439012",
-            },
-            createdAt: {
-              type: "string",
-              format: "date-time",
-            },
-            updatedAt: {
-              type: "string",
-              format: "date-time",
-            },
-          },
-        },
-        // Match Schemas
-        MakeMove: {
-          type: "object",
-          required: ["x", "y", "playerId"],
-          properties: {
-            x: {
-              type: "integer",
-              minimum: 0,
-              example: 5,
-            },
-            y: {
-              type: "integer",
-              minimum: 0,
-              example: 5,
-            },
-            playerId: {
-              type: "string",
-              example: "507f1f77bcf86cd799439011",
-            },
-          },
-        },
-        Match: {
-          type: "object",
-          properties: {
-            _id: {
-              type: "string",
-              example: "507f1f77bcf86cd799439011",
-            },
-            roomId: {
-              type: "string",
-              example: "507f1f77bcf86cd799439012",
-            },
-            players: {
-              type: "array",
-              items: {
-                type: "string",
-              },
-            },
-            board: {
-              type: "array",
-              items: {
-                type: "array",
-                items: {
-                  type: "integer",
-                  nullable: true,
-                },
-              },
-            },
-            currentTurn: {
-              type: "integer",
-              example: 0,
-            },
-            boardSize: {
-              type: "integer",
-              example: 15,
-            },
-            history: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  x: { type: "integer" },
-                  y: { type: "integer" },
-                  playerId: { type: "string" },
-                  timestamp: { type: "string", format: "date-time" },
-                },
-              },
-            },
-            result: {
-              type: "string",
-              enum: ["pending", "win", "draw"],
-              nullable: true,
-              example: "pending",
-            },
-            winner: {
-              type: "string",
-              nullable: true,
-              example: "507f1f77bcf86cd799439011",
-            },
-            startTime: {
-              type: "string",
-              format: "date-time",
-            },
-            endTime: {
-              type: "string",
-              format: "date-time",
-              nullable: true,
-            },
-          },
-        },
-        // Error Schemas
-        ValidationError: {
-          type: "object",
-          properties: {
-            field: {
-              type: "string",
-              example: "email",
-            },
-            message: {
-              type: "string",
-              example: "Please provide a valid email address",
-            },
-            value: {
-              type: "string",
-              example: "invalid-email",
-            },
-          },
-        },
-      },
-    },
-    security: [
-      {
-        bearerAuth: [],
-      },
-    ],
-  },
-  apis: ["./src/routes/*.ts", "./src/controllers/*.ts"],
-};
+// Load the root OpenAPI YAML which uses $ref to include paths and components
+const specPath = join(process.cwd(), "src", "docs", "openapi.yaml");
+const swaggerDocument: any = YAML.parse(readFileSync(specPath, "utf8"));
 
-const swaggerSpec = swaggerJsdoc(options);
+// Resolve simple top-level $ref in paths and components.schemas
+function tryResolveRef(refStr: string) {
+  // refStr may be './components/schemas/auth.yaml#/LoginRequest' or '#/components/schemas/LoginRequest'
+  const [filePart = "", pointer] = refStr.split("#");
+  
+  // If there's no file part (local ref starting with '#'), resolve against the already-loaded swaggerDocument
+  if (!filePart) {
+    if (!pointer || pointer === "#") return swaggerDocument;
+    const p = pointer.replace(/^#?/, "");
+    const parts = p.split("/").filter(Boolean).map((s: string) => s.replace(/~1/g, "/").replace(/~0/g, "~"));
+    let cur: any = swaggerDocument;
+    for (const part of parts) {
+      if (cur === undefined) return undefined;
+      cur = cur[part];
+    }
+    return cur;
+  }
 
-export default swaggerSpec;
+  // Otherwise load external file relative to docs folder
+  const filePath = join(process.cwd(), "src", "docs", filePart);
+  try {
+    const doc: any = YAML.parse(readFileSync(filePath, "utf8"));
+    if (!pointer || pointer === "#") return doc;
+    const p = pointer.replace(/^#?/, "");
+    const parts = p.split("/").filter(Boolean).map((s: string) => s.replace(/~1/g, "/").replace(/~0/g, "~"));
+    let cur: any = doc;
+    for (const part of parts) {
+      cur = cur[part];
+      if (cur === undefined) return undefined;
+    }
+    return cur;
+  } catch (err: any) {
+    console.error("Failed to load ref file", filePath, err);
+    return undefined;
+  }
+}
 
+// Recursively resolve any $ref properties found inside an object
+function resolveRefsRec(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(resolveRefsRec);
+  if (typeof obj !== "object") return obj;
+
+  // If this object itself is a $ref node, try to resolve and return the resolved value
+  if (obj.$ref && typeof obj.$ref === "string") {
+    const resolved = tryResolveRef(obj.$ref);
+    // If resolved is an object, make sure to recursively resolve inside it too
+    if (resolved && typeof resolved === "object") {
+      return resolveRefsRec(JSON.parse(JSON.stringify(resolved)));
+    }
+    return resolved;
+  }
+
+  // Otherwise walk properties
+  for (const [k, v] of Object.entries(obj)) {
+    (obj as any)[k] = resolveRefsRec(v as any);
+  }
+  return obj;
+}
+
+// First, resolve any top-level path $ref entries which point to external files
+if (swaggerDocument && swaggerDocument.paths) {
+  for (const [p, v] of Object.entries(swaggerDocument.paths)) {
+    if (v && typeof v === "object" && (v as any).$ref) {
+      const resolved = tryResolveRef((v as any).$ref);
+      if (resolved) swaggerDocument.paths[p] = resolved;
+    }
+  }
+}
+
+// Resolve component schema $refs (external files or internal)
+if (swaggerDocument && swaggerDocument.components && swaggerDocument.components.schemas) {
+  for (const [name, val] of Object.entries(swaggerDocument.components.schemas)) {
+    if (val && typeof val === "object" && (val as any).$ref) {
+      const resolved = tryResolveRef((val as any).$ref);
+      if (resolved) swaggerDocument.components.schemas[name] = resolved;
+    }
+  }
+}
+
+// Resolve securitySchemes $refs
+if (swaggerDocument && swaggerDocument.components && swaggerDocument.components.securitySchemes) {
+  for (const [name, val] of Object.entries(swaggerDocument.components.securitySchemes)) {
+    if (val && typeof val === "object" && (val as any).$ref) {
+      const resolved = tryResolveRef((val as any).$ref);
+      if (resolved) swaggerDocument.components.securitySchemes[name] = resolved;
+    }
+  }
+}
+
+// Replace server URLs with environment variable if set
+if (swaggerDocument.servers && Array.isArray(swaggerDocument.servers)) {
+  const apiUrl = process.env.API_URL || "http://localhost:5000";
+  swaggerDocument.servers.forEach((server: any) => {
+    if (server.url && typeof server.url === "string") {
+      // Update first server (development) with API_URL if set
+      if (swaggerDocument.servers.indexOf(server) === 0) {
+        server.url = apiUrl;
+      }
+    }
+  });
+}
+
+// Finally, recursively walk the full document and resolve any remaining $ref nodes
+resolveRefsRec(swaggerDocument);
+
+export default swaggerDocument;

@@ -1,0 +1,89 @@
+RegisterRequest:
+  type: object
+  required: [username, email, password]
+  properties:
+    username:
+      type: string
+      example: johndoe
+    email:
+      type: string
+      format: email
+      example: john@example.com
+    password:
+      type: string
+      format: password
+      minLength: 6
+      example: password123
+    otp:
+      type: string
+      description: Optional OTP for inline verification
+      example: "123456"
+
+LoginRequest:
+  type: object
+  required: [email, password]
+  properties:
+    email:
+      type: string
+      format: email
+      example: john@example.com
+    password:
+      type: string
+      format: password
+      example: password123
+
+GoogleLoginRequest:
+  type: object
+  required: [idToken]
+  properties:
+    idToken:
+      type: string
+      description: Google ID token from Flutter
+      example: eyJhbGciOiJSUzI1NiIsImtpZCI6IjEyMzQ1NiJ9...
+
+TokenResponse:
+  type: object
+  properties:
+    accessToken:
+      type: string
+      example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    refreshToken:
+      type: string
+      example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    user:
+      $ref: '#/components/schemas/User'
+
+ForgotPasswordRequest:
+  type: object
+  required: [email]
+  properties:
+    email:
+      type: string
+      format: email
+      example: john@example.com
+
+ResetPasswordRequest:
+  type: object
+  required: [email, otp, newPassword]
+  properties:
+    email:
+      type: string
+      format: email
+      example: john@example.com
+    otp:
+      type: string
+      example: "123456"
+    newPassword:
+      type: string
+      format: password
+      minLength: 6
+      example: newpassword123
+
+RefreshTokenRequest:
+  type: object
+  required: [refreshToken]
+  properties:
+    refreshToken:
+      type: string
+      example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+

@@ -12,7 +12,7 @@ const app = express();
 // Security: Helmet - Set security headers
 app.use(helmetConfig);
 
-// Security: CORS - Configure CORS với whitelist từ .env
+// Security: CORS - Whitelist từ CLIENT_URL trong .env
 app.use(cors(corsOptions));
 
 // Body parser với giới hạn kích thước
@@ -32,7 +32,7 @@ app.get("/", (req: express.Request, res: express.Response) => {
 // Swagger Documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCss: ".swagger-ui .topbar { display: none }",
-  customSiteTitle: "Caro Game API Documentation",
+  customSiteTitle: "Personal Finance Management API Documentation",
 }));
 
 // Swagger JSON endpoint

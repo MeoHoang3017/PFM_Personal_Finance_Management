@@ -1,0 +1,227 @@
+paths:
+  /api/transactions:
+    get:
+      summary: Get user transactions with pagination
+      tags: [Transactions]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            default: 10
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum: [income, expense, transfer]
+        - in: query
+          name: category
+          schema:
+            type: string
+        - in: query
+          name: wallet
+          schema:
+            type: string
+        - in: query
+          name: startDate
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: endDate
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of transactions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      result:
+                        type: object
+                        properties:
+                          data:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Transaction'
+                          pagination:
+                            $ref: '#/components/schemas/Pagination'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      summary: Create a new transaction
+      tags: [Transactions]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTransactionRequest'
+      responses:
+        '201':
+          description: Transaction created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/transactions/{id}:
+    get:
+      summary: Get transaction by ID
+      tags: [Transactions]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transaction details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/Transaction'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Update transaction
+      tags: [Transactions]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTransactionRequest'
+      responses:
+        '200':
+          description: Transaction updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Delete transaction
+      tags: [Transactions]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Transaction deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BaseResponse'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/transactions/{id}/duplicate:
+    post:
+      summary: Duplicate transaction
+      tags: [Transactions]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: Transaction duplicated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/Transaction'
+        '404':
+          description: Transaction not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+

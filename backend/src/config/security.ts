@@ -11,22 +11,23 @@ dotenv.config();
  * Lấy frontend URL từ environment variable
  */
 export const corsOptions: cors.CorsOptions = {
-  origin: (origin, callback) => {
-    const allowedOrigins = process.env.CLIENT_URL 
-      ? process.env.CLIENT_URL.split(',').map(url => url.trim())
-      : ['http://localhost:3000', 'http://localhost:5173']; // Fallback cho development
+  // origin: (origin, callback) => {
+  //   const allowedOrigins = process.env.CLIENT_URL 
+  //     ? process.env.CLIENT_URL.split(',').map(url => url.trim())
+  //     : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:57536']; // Fallback cho development
 
-    // Cho phép requests không có origin (mobile apps, Postman, etc.) trong development
-    if (!origin && process.env.NODE_ENV === 'development') {
-      return callback(null, true);
-    }
+  //   // Cho phép requests không có origin (mobile apps, Postman, etc.) trong development
+  //   if (!origin && process.env.NODE_ENV === 'development') {
+  //     return callback(null, true);
+  //   }
 
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  //   if (!origin || allowedOrigins.includes(origin)) {
+  //     callback(null, true);
+  //   } else {
+  //     callback(new Error('Not allowed by CORS'));
+  //   }
+  // },
+  origin: '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
@@ -102,6 +103,29 @@ export const userLookupLimiter = rateLimit({
     res.status(429).json({
       success: false,
       message: 'Too many lookup requests, please try again later.',
+    });
+  },
+});
+
+/**
+ * Exchange Rate Update Rate Limiter
+ * Giới hạn gọi API cập nhật tỷ giá để tránh lạm dụng và hạn chế gọi API ngoài
+ */
+export const exchangeRateUpdateLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 phút
+  max: 1, // 1 request / 5 phút / IP
+  message: {
+    success: false,
+    message: 'Exchange rate update is limited to once per 5 minutes. Please try again later.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    securityLogger.logRateLimitExceeded(ip, req.path || 'unknown', 1);
+    res.status(429).json({
+      success: false,
+      message: 'Exchange rate update is limited to once per 5 minutes. Please try again later.',
     });
   },
 });

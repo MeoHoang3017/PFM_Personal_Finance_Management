@@ -1,0 +1,49 @@
+Tutorial:
+  type: object
+  properties:
+    id:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+    user:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+    isCompleted:
+      type: boolean
+      example: false
+    completedSteps:
+      type: array
+      items:
+        type: object
+        properties:
+          stepId:
+            type: string
+            example: step1
+          completedAt:
+            type: string
+            format: date-time
+    lastViewedAt:
+      type: string
+      format: date-time
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+UpdateTutorialRequest:
+  type: object
+  properties:
+    isCompleted:
+      type: boolean
+    completedSteps:
+      type: array
+      items:
+        type: object
+        properties:
+          stepId:
+            type: string
+          completedAt:
+            type: string
+            format: date-time
+

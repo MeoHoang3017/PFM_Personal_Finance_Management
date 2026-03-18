@@ -1,0 +1,37 @@
+ExchangeRate:
+  type: object
+  properties:
+    baseCurrency:
+      type: string
+      example: USD
+    targetCurrency:
+      type: string
+      example: EUR
+    rate:
+      type: number
+      example: 0.85
+    date:
+      type: string
+      format: date
+      example: "2024-01-15"
+
+ConvertCurrencyRequest:
+  type: object
+  required: [amount, fromCurrency, toCurrency]
+  properties:
+    amount:
+      type: number
+      minimum: 0
+      example: 100
+    fromCurrency:
+      type: string
+      example: USD
+    toCurrency:
+      type: string
+      example: EUR
+    date:
+      type: string
+      format: date
+      description: Optional date for historical rates
+      example: "2024-01-15"
+

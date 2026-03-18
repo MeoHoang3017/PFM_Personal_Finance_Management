@@ -1,0 +1,71 @@
+Category:
+  type: object
+  properties:
+    id:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+    name:
+      type: string
+      example: Food & Dining
+    type:
+      type: string
+      enum: [income, expense]
+      example: expense
+    parentCategory:
+      type: string
+      nullable: true
+      example: "507f1f77bcf86cd799439011"
+    user:
+      type: string
+      nullable: true
+      example: "507f1f77bcf86cd799439011"
+    icon:
+      type: string
+      example: "🍔"
+    color:
+      type: string
+      example: "#FF5733"
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+CreateCategoryRequest:
+  type: object
+  required: [name, type]
+  properties:
+    name:
+      type: string
+      example: Food & Dining
+    type:
+      type: string
+      enum: [income, expense]
+      example: expense
+    parentCategory:
+      type: string
+      nullable: true
+    icon:
+      type: string
+      example: "🍔"
+    color:
+      type: string
+      example: "#FF5733"
+
+UpdateCategoryRequest:
+  type: object
+  properties:
+    name:
+      type: string
+    type:
+      type: string
+      enum: [income, expense]
+    parentCategory:
+      type: string
+      nullable: true
+    icon:
+      type: string
+    color:
+      type: string
+

@@ -1,0 +1,12 @@
+bearerAuth:
+  type: http
+  scheme: bearer
+  bearerFormat: JWT
+  description: Enter JWT token
+
+cookieAuth:
+  type: apiKey
+  in: cookie
+  name: accessToken
+  description: Cookie-based authentication (for Flutter)
+

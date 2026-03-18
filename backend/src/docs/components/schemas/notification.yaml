@@ -1,0 +1,63 @@
+Notification:
+  type: object
+  properties:
+    id:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+    title:
+      type: string
+      example: Budget Alert
+    content:
+      type: string
+      example: You have exceeded your monthly budget
+    type:
+      type: string
+      enum: [info, warning, success, error, reminder]
+      example: warning
+    user:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+    isRead:
+      type: boolean
+      example: false
+    readAt:
+      type: string
+      format: date-time
+      nullable: true
+    redirectType:
+      type: string
+      enum: [transaction, budget, wallet, goal, none]
+      example: budget
+    redirectId:
+      type: string
+      nullable: true
+      example: "507f1f77bcf86cd799439011"
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+CreateNotificationRequest:
+  type: object
+  required: [title, content]
+  properties:
+    title:
+      type: string
+      example: Budget Alert
+    content:
+      type: string
+      example: You have exceeded your monthly budget
+    type:
+      type: string
+      enum: [info, warning, success, error, reminder]
+      default: info
+    redirectType:
+      type: string
+      enum: [transaction, budget, wallet, goal, none]
+      default: none
+    redirectId:
+      type: string
+      nullable: true
+

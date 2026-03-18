@@ -1,0 +1,42 @@
+Wallet:
+  type: object
+  properties:
+    id:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+    name:
+      type: string
+      example: Main Wallet
+    balance:
+      type: number
+      example: 1000.50
+    user:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+CreateWalletRequest:
+  type: object
+  required: [name]
+  properties:
+    name:
+      type: string
+      example: Main Wallet
+    balance:
+      type: number
+      default: 0
+      example: 1000.50
+
+UpdateWalletRequest:
+  type: object
+  properties:
+    name:
+      type: string
+    balance:
+      type: number
+

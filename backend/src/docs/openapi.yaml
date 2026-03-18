@@ -1,0 +1,240 @@
+openapi: 3.0.0
+info:
+  title: Personal Finance Management API
+  version: 1.0.0
+  description: API documentation for Personal Finance Management backend
+  contact:
+    name: API Support
+    email: support@pfm.com
+
+servers:
+  - url: http://localhost:5000
+    description: Development server
+  - url: http://localhost:5000
+    description: Local server
+
+security:
+  - bearerAuth: []
+  - cookieAuth: []
+
+paths:
+  # Auth Routes
+  /api/auth/register:
+    $ref: './paths/auth.yaml#/paths/~1api~1auth~1register'
+  /api/auth/login:
+    $ref: './paths/auth.yaml#/paths/~1api~1auth~1login'
+  /api/auth/google:
+    $ref: './paths/auth.yaml#/paths/~1api~1auth~1google'
+  /api/auth/logout:
+    $ref: './paths/auth.yaml#/paths/~1api~1auth~1logout'
+  /api/auth/refresh-token:
+    $ref: './paths/auth.yaml#/paths/~1api~1auth~1refresh-token'
+  /api/auth/forgot-password:
+    $ref: './paths/auth.yaml#/paths/~1api~1auth~1forgot-password'
+  /api/auth/reset-password:
+    $ref: './paths/auth.yaml#/paths/~1api~1auth~1reset-password'
+
+  # OTP Routes
+  /api/otp/send-register-otp:
+    $ref: './paths/otp.yaml#/paths/~1api~1otp~1send-register-otp'
+  /api/otp/send-forgot-password-otp:
+    $ref: './paths/otp.yaml#/paths/~1api~1otp~1send-forgot-password-otp'
+  /api/otp/verify:
+    $ref: './paths/otp.yaml#/paths/~1api~1otp~1verify'
+
+  # User Routes
+  /api/users/profile:
+    $ref: './paths/user.yaml#/paths/~1api~1users~1profile'
+  /api/users/settings:
+    $ref: './paths/user.yaml#/paths/~1api~1users~1settings'
+  /api/users/change-password:
+    $ref: './paths/user.yaml#/paths/~1api~1users~1change-password'
+  /api/users/list:
+    $ref: './paths/user.yaml#/paths/~1api~1users~1list'
+  /api/users/search:
+    $ref: './paths/user.yaml#/paths/~1api~1users~1search'
+  /api/users/{id}:
+    $ref: './paths/user.yaml#/paths/~1api~1users~1{id}'
+
+  # Wallet Routes
+  /api/wallets:
+    $ref: './paths/wallet.yaml#/paths/~1api~1wallets'
+  /api/wallets/{id}:
+    $ref: './paths/wallet.yaml#/paths/~1api~1wallets~1{id}'
+
+  # Transaction Routes
+  /api/transactions:
+    $ref: './paths/transaction.yaml#/paths/~1api~1transactions'
+  /api/transactions/{id}:
+    $ref: './paths/transaction.yaml#/paths/~1api~1transactions~1{id}'
+  /api/transactions/{id}/duplicate:
+    $ref: './paths/transaction.yaml#/paths/~1api~1transactions~1{id}~1duplicate'
+
+  # Category Routes
+  /api/categories:
+    $ref: './paths/category.yaml#/paths/~1api~1categories'
+  /api/categories/user/list:
+    $ref: './paths/category.yaml#/paths/~1api~1categories~1user~1list'
+  /api/categories/{id}:
+    $ref: './paths/category.yaml#/paths/~1api~1categories~1{id}'
+
+  # Goal Routes
+  /api/goals:
+    $ref: './paths/goal.yaml#/paths/~1api~1goals'
+  /api/goals/{id}:
+    $ref: './paths/goal.yaml#/paths/~1api~1goals~1{id}'
+
+  # Budget Routes
+  /api/budgets:
+    $ref: './paths/budget.yaml#/paths/~1api~1budgets'
+  /api/budgets/{id}:
+    $ref: './paths/budget.yaml#/paths/~1api~1budgets~1{id}'
+
+  # Currency Routes
+  /api/currencies:
+    $ref: './paths/currency.yaml#/paths/~1api~1currencies'
+  /api/currencies/code/{code}:
+    $ref: './paths/currency.yaml#/paths/~1api~1currencies~1code~1{code}'
+  /api/currencies/{id}:
+    $ref: './paths/currency.yaml#/paths/~1api~1currencies~1{id}'
+
+  # Notification Routes
+  /api/notifications:
+    $ref: './paths/notification.yaml#/paths/~1api~1notifications'
+  /api/notifications/unread/count:
+    $ref: './paths/notification.yaml#/paths/~1api~1notifications~1unread~1count'
+  /api/notifications/{id}:
+    $ref: './paths/notification.yaml#/paths/~1api~1notifications~1{id}'
+  /api/notifications/{id}/read:
+    $ref: './paths/notification.yaml#/paths/~1api~1notifications~1{id}~1read'
+  /api/notifications/read-all:
+    $ref: './paths/notification.yaml#/paths/~1api~1notifications~1read-all'
+  /api/notifications/read/all:
+    $ref: './paths/notification.yaml#/paths/~1api~1notifications~1read~1all'
+
+  # Tutorial Routes
+  /api/tutorial:
+    $ref: './paths/tutorial.yaml#/paths/~1api~1tutorial'
+  /api/tutorial/step/complete:
+    $ref: './paths/tutorial.yaml#/paths/~1api~1tutorial~1step~1complete'
+  /api/tutorial/complete:
+    $ref: './paths/tutorial.yaml#/paths/~1api~1tutorial~1complete'
+  /api/tutorial/reset:
+    $ref: './paths/tutorial.yaml#/paths/~1api~1tutorial~1reset'
+
+  # Exchange Rate Routes
+  /api/exchange-rates/rate:
+    $ref: './paths/exchangeRate.yaml#/paths/~1api~1exchange-rates~1rate'
+  /api/exchange-rates/convert:
+    $ref: './paths/exchangeRate.yaml#/paths/~1api~1exchange-rates~1convert'
+  /api/exchange-rates/update:
+    $ref: './paths/exchangeRate.yaml#/paths/~1api~1exchange-rates~1update'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      $ref: './components/security.yaml#/bearerAuth'
+    cookieAuth:
+      $ref: './components/security.yaml#/cookieAuth'
+
+  schemas:
+    # Base Schemas
+    BaseResponse:
+      $ref: './components/schemas/common.yaml#/BaseResponse'
+    Pagination:
+      $ref: './components/schemas/common.yaml#/Pagination'
+    Error:
+      $ref: './components/schemas/common.yaml#/Error'
+
+    # Auth Schemas
+    RegisterRequest:
+      $ref: './components/schemas/auth.yaml#/RegisterRequest'
+    LoginRequest:
+      $ref: './components/schemas/auth.yaml#/LoginRequest'
+    GoogleLoginRequest:
+      $ref: './components/schemas/auth.yaml#/GoogleLoginRequest'
+    TokenResponse:
+      $ref: './components/schemas/auth.yaml#/TokenResponse'
+    ForgotPasswordRequest:
+      $ref: './components/schemas/auth.yaml#/ForgotPasswordRequest'
+    ResetPasswordRequest:
+      $ref: './components/schemas/auth.yaml#/ResetPasswordRequest'
+    RefreshTokenRequest:
+      $ref: './components/schemas/auth.yaml#/RefreshTokenRequest'
+
+    # User Schemas
+    User:
+      $ref: './components/schemas/user.yaml#/User'
+    UpdateUserSettingsRequest:
+      $ref: './components/schemas/user.yaml#/UpdateUserSettingsRequest'
+    ChangePasswordRequest:
+      $ref: './components/schemas/user.yaml#/ChangePasswordRequest'
+
+    # Wallet Schemas
+    Wallet:
+      $ref: './components/schemas/wallet.yaml#/Wallet'
+    CreateWalletRequest:
+      $ref: './components/schemas/wallet.yaml#/CreateWalletRequest'
+    UpdateWalletRequest:
+      $ref: './components/schemas/wallet.yaml#/UpdateWalletRequest'
+
+    # Transaction Schemas
+    Transaction:
+      $ref: './components/schemas/transaction.yaml#/Transaction'
+    CreateTransactionRequest:
+      $ref: './components/schemas/transaction.yaml#/CreateTransactionRequest'
+    UpdateTransactionRequest:
+      $ref: './components/schemas/transaction.yaml#/UpdateTransactionRequest'
+
+    # Category Schemas
+    Category:
+      $ref: './components/schemas/category.yaml#/Category'
+    CreateCategoryRequest:
+      $ref: './components/schemas/category.yaml#/CreateCategoryRequest'
+    UpdateCategoryRequest:
+      $ref: './components/schemas/category.yaml#/UpdateCategoryRequest'
+
+    # Goal Schemas
+    Goal:
+      $ref: './components/schemas/goal.yaml#/Goal'
+    CreateGoalRequest:
+      $ref: './components/schemas/goal.yaml#/CreateGoalRequest'
+    UpdateGoalRequest:
+      $ref: './components/schemas/goal.yaml#/UpdateGoalRequest'
+
+    # Budget Schemas
+    Budget:
+      $ref: './components/schemas/budget.yaml#/Budget'
+    CreateBudgetRequest:
+      $ref: './components/schemas/budget.yaml#/CreateBudgetRequest'
+    UpdateBudgetRequest:
+      $ref: './components/schemas/budget.yaml#/UpdateBudgetRequest'
+
+    # Currency Schemas
+    Currency:
+      $ref: './components/schemas/currency.yaml#/Currency'
+
+    # Notification Schemas
+    Notification:
+      $ref: './components/schemas/notification.yaml#/Notification'
+    CreateNotificationRequest:
+      $ref: './components/schemas/notification.yaml#/CreateNotificationRequest'
+
+    # Tutorial Schemas
+    Tutorial:
+      $ref: './components/schemas/tutorial.yaml#/Tutorial'
+    UpdateTutorialRequest:
+      $ref: './components/schemas/tutorial.yaml#/UpdateTutorialRequest'
+
+    # Exchange Rate Schemas
+    ExchangeRate:
+      $ref: './components/schemas/exchangeRate.yaml#/ExchangeRate'
+    ConvertCurrencyRequest:
+      $ref: './components/schemas/exchangeRate.yaml#/ConvertCurrencyRequest'
+
+    # OTP Schemas
+    SendOTPRequest:
+      $ref: './components/schemas/otp.yaml#/SendOTPRequest'
+    VerifyOTPRequest:
+      $ref: './components/schemas/otp.yaml#/VerifyOTPRequest'
+

@@ -1,0 +1,125 @@
+paths:
+  /api/exchange-rates/rate:
+    get:
+      summary: Get exchange rate
+      tags: [Exchange Rates]
+      parameters:
+        - in: query
+          name: baseCurrency
+          required: true
+          schema:
+            type: string
+            example: USD
+        - in: query
+          name: targetCurrency
+          required: true
+          schema:
+            type: string
+            example: EUR
+        - in: query
+          name: date
+          schema:
+            type: string
+            format: date
+            example: "2024-01-15"
+      responses:
+        '200':
+          description: Exchange rate
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/ExchangeRate'
+        '404':
+          description: Exchange rate not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/exchange-rates/convert:
+    post:
+      summary: Convert currency
+      tags: [Exchange Rates]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConvertCurrencyRequest'
+      responses:
+        '200':
+          description: Currency converted
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      result:
+                        type: object
+                        properties:
+                          amount:
+                            type: number
+                          fromCurrency:
+                            type: string
+                          toCurrency:
+                            type: string
+                          convertedAmount:
+                            type: number
+                          date:
+                            type: string
+                            format: date-time
+        '404':
+          description: Exchange rate not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/exchange-rates/update:
+    post:
+      summary: Update exchange rates (Manual trigger)
+      tags: [Exchange Rates]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      parameters:
+        - in: query
+          name: baseCurrency
+          schema:
+            type: string
+            default: USD
+      responses:
+        '200':
+          description: Exchange rates updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      result:
+                        type: object
+                        properties:
+                          savedCount:
+                            type: integer
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
