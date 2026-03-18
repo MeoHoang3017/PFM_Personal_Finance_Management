@@ -37,6 +37,7 @@ class _HomeSpendingChartState extends State<HomeSpendingChart> {
     final totalValue = isExpense ? chartData.totalExpense : chartData.totalIncome;
     final lineColor = isExpense ? p.expenseColor : p.incomeColor;
     final label = isExpense ? 'Tổng chi' : 'Tổng thu';
+    final suffix = widget.transactions.isNotEmpty ? widget.transactions.first.currencySuffix : ' ₫';
 
     final allY = spots.map((s) => s.y).toList();
     final double dataMaxY = allY.isEmpty ? 1.0 : allY.reduce((a, b) => a > b ? a : b);
@@ -101,7 +102,7 @@ class _HomeSpendingChartState extends State<HomeSpendingChart> {
         ),
         const SizedBox(height: 16),
         Text(
-          '$label: ${formatCurrency(totalValue, compact: true)}',
+          '$label: ${formatCurrency(totalValue, suffix: suffix, compact: true)}',
           style: TextStyle(color: lineColor, fontSize: 17, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 20),

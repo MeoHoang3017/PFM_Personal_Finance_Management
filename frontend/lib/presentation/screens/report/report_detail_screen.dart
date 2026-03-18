@@ -162,7 +162,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 child: _IncomeExpenseCard(
                   isIncome: true,
                   label: 'Tổng thu',
-                  value: formatCurrency(monthData.totalIncome),
+                  value: formatCurrency(monthData.totalIncome, suffix: _transactions.isNotEmpty ? _transactions.first.currencySuffix : ' ₫'),
                   palette: p,
                   shadow: shadow,
                 ),
@@ -172,7 +172,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 child: _IncomeExpenseCard(
                   isIncome: false,
                   label: 'Tổng chi',
-                  value: formatCurrency(monthData.totalExpense),
+                  value: formatCurrency(monthData.totalExpense, suffix: _transactions.isNotEmpty ? _transactions.first.currencySuffix : ' ₫'),
                   palette: p,
                   shadow: shadow,
                 ),
@@ -408,7 +408,7 @@ class _TransactionDetailSheet extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${isIncome ? '+' : '-'}${formatCurrency(transaction.amount)}',
+                  '${isIncome ? '+' : '-'}${formatCurrency(transaction.amount, suffix: transaction.currencySuffix)}',
                   style: TextStyle(
                     color: color,
                     fontWeight: FontWeight.bold,

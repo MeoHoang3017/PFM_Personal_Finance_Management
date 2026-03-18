@@ -9,6 +9,8 @@
     "start": "node dist/server.js",
     "seed": "tsx src/scripts/seedRunner.ts",
     "seed:sample": "tsx src/scripts/seedSampleData.ts",
+    "seed:currencies": "tsx src/scripts/seedCurrenciesAndExchangeRates.ts",
+    "test:exchange-rate": "tsx src/scripts/testExchangeRateApi.ts",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
   },

@@ -107,13 +107,15 @@ export async function runSeedSampleData(): Promise<void> {
 
     let wallets = await Wallet.find({ user: user._id }).lean();
     if (wallets.length === 0) {
-      const defaultWallet = new Wallet({ name: "Ví mặc định", balance: 0, user: user._id });
+      const defaultWallet = new Wallet({ name: "Ví mặc định", balance: 0, currency: u.currency, user: user._id });
       await defaultWallet.save();
-      wallets = [await Wallet.findById(defaultWallet._id).lean()!];
+      const defaultLean = await Wallet.findById(defaultWallet._id).lean();
+      if (defaultLean) wallets = [defaultLean];
       if (u.username === "demo") {
-        const second = new Wallet({ name: "Ví tiết kiệm", balance: 0, user: user._id });
+        const second = new Wallet({ name: "Ví tiết kiệm", balance: 0, currency: u.currency, user: user._id });
         await second.save();
-        wallets.push(await Wallet.findById(second._id).lean()!);
+        const secondLean = await Wallet.findById(second._id).lean();
+        if (secondLean) wallets.push(secondLean);
       }
       console.log(`Created ${wallets.length} wallet(s) for ${u.email}`);
     }

@@ -2,6 +2,7 @@ import { Pagination } from "../utils/pagination";
 
 export interface TransactionResponse {
     id: string;
+    /** Amount in user's display currency (converted from wallet currency if needed). */
     amount: number;
     type: 'income' | 'expense' | 'transfer';
     /** Category id (ObjectId string). */
@@ -13,6 +14,10 @@ export interface TransactionResponse {
     notes: string;
     wallet: string;
     user: string;
+    /** User's display currency code (e.g. USD, VND) for frontend. */
+    displayCurrency: string;
+    /** Currency symbol for frontend (e.g. $, ₫). */
+    currencySymbol: string;
     createdAt: Date;
     updatedAt: Date;
 }

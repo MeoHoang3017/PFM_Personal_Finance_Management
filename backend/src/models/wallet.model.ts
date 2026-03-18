@@ -10,6 +10,12 @@ const walletSchema = new mongoose.Schema({
         type: Number,
         default: 0,
     },
+    currency: {
+        type: String,
+        default: 'USD',
+        uppercase: true,
+        match: [/^[A-Z]{3}$/, 'Invalid currency code (use ISO 4217, e.g. USD, VND)'],
+    },
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",

@@ -31,6 +31,10 @@ class TransactionModel {
   final String notes;
   final String wallet;
   final String user;
+  /// Display currency code (e.g. USD, VND) - amount is already in this currency.
+  final String? displayCurrency;
+  /// Currency symbol for display (e.g. $, ₫).
+  final String? currencySymbol;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -45,12 +49,17 @@ class TransactionModel {
     this.notes = '',
     required this.wallet,
     required this.user,
+    this.displayCurrency,
+    this.currencySymbol,
     this.createdAt,
     this.updatedAt,
   });
 
   /// Display label: categoryName if present, otherwise category (id).
   String get categoryDisplay => (categoryName != null && categoryName!.isNotEmpty) ? categoryName! : (category.isEmpty ? '' : category);
+
+  /// Suffix for currency display (space + symbol), e.g. ' ₫' or ' $'.
+  String get currencySuffix => ' ${currencySymbol ?? '₫'}';
 
   factory TransactionModel.fromJson(Map<String, dynamic> json) {
     return TransactionModel(
@@ -66,6 +75,8 @@ class TransactionModel {
       notes: json['notes'] as String? ?? '',
       wallet: json['wallet'] as String? ?? '',
       user: json['user'] as String? ?? '',
+      displayCurrency: json['displayCurrency'] as String?,
+      currencySymbol: json['currencySymbol'] as String?,
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'] as String) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'] as String) : null,
     );

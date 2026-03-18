@@ -79,7 +79,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  String _formatBalance(double value) => formatCurrency(value, compact: true);
+  String get _currencySuffix => _wallets.isNotEmpty ? _wallets.first.currencySuffix : ' ₫';
+  String _formatBalance(double value) => formatCurrency(value, suffix: _currencySuffix, compact: true);
 
   List<TransactionModel> get _recentTransactions {
     final list = List<TransactionModel>.from(_transactions);

@@ -6,31 +6,26 @@ dotenv.config();
 
 /**
  * Get all Google Client IDs from environment
- * Supports multiple platforms: Web, iOS, Android
+ * Supports: GOOGLE_CLIENT_ID (alias, same as Flutter serverClientId), GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID
+ * Flutter app sends ID token with audience = serverClientId (Web Client ID) → backend must verify with that same value
  */
 function getGoogleClientIds(): string[] {
+    const seen = new Set<string>();
     const clientIds: string[] = [];
-    
-    // Web Client ID
-    if (process.env.GOOGLE_WEB_CLIENT_ID) {
-        clientIds.push(process.env.GOOGLE_WEB_CLIENT_ID);
-    }
-    
-    // iOS Client ID (if different from web)
-    if (process.env.GOOGLE_IOS_CLIENT_ID) {
-        clientIds.push(process.env.GOOGLE_IOS_CLIENT_ID);
-    }
-    
-    // Android Client ID (if different from web)
-    if (process.env.GOOGLE_ANDROID_CLIENT_ID) {
-        clientIds.push(process.env.GOOGLE_ANDROID_CLIENT_ID);
-    }
-    
-    // If no specific client IDs, use web as default
-    if (clientIds.length === 0 && process.env.GOOGLE_WEB_CLIENT_ID) {
-        clientIds.push(process.env.GOOGLE_WEB_CLIENT_ID);
-    }
-    
+
+    const add = (id: string | undefined) => {
+        const trimmed = id?.trim();
+        if (trimmed && !seen.has(trimmed)) {
+            seen.add(trimmed);
+            clientIds.push(trimmed);
+        }
+    };
+
+    add(process.env.GOOGLE_CLIENT_ID);
+    add(process.env.GOOGLE_WEB_CLIENT_ID);
+    add(process.env.GOOGLE_IOS_CLIENT_ID);
+    add(process.env.GOOGLE_ANDROID_CLIENT_ID);
+
     return clientIds;
 }
 
@@ -49,7 +44,9 @@ export const verifyGoogleToken = async (idToken: string): Promise<{
         const clientIds = getGoogleClientIds();
         
         if (clientIds.length === 0) {
-            throw new Error('No Google Client IDs configured');
+            throw new Error(
+                'No Google Client IDs configured. Set GOOGLE_WEB_CLIENT_ID or GOOGLE_CLIENT_ID in .env to the Web Client ID from Google Cloud Console (same value as Flutter GOOGLE_SERVER_CLIENT_ID).'
+            );
         }
 
         // Try to verify with each client ID (for multi-platform support)

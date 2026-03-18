@@ -17,7 +17,13 @@ const currencySchema = new mongoose.Schema({
         type: String,
         required: true,
         trim: true,
-    }
+    },
+    decimalPlaces: {
+        type: Number,
+        default: 2,
+        min: 0,
+        max: 8,
+    },
 }, {
     timestamps: true,
     versionKey: false,

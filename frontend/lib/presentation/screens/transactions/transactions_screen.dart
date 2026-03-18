@@ -329,6 +329,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
   /// Khối thu gọn: filter (chips + dropdown) + dòng Thu / Chi / Doanh thu ở dưới.
   Widget _buildCompactFilterAndSummary(BuildContext context, PaletteColors p) {
     final (income, expense, net) = _monthTotals();
+    final suffix = _transactions.isNotEmpty ? _transactions.first.currencySuffix : ' ₫';
     return Container(
       color: p.sectionContentBg,
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
@@ -411,7 +412,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        formatCurrency(income, compact: true),
+                        formatCurrency(income, suffix: suffix, compact: true),
                         style: TextStyle(color: p.incomeColor, fontWeight: FontWeight.w600, fontSize: 12),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -427,7 +428,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                       Text(context.tr('month_expense'), style: TextStyle(color: p.subtitleText, fontSize: 10)),
                       const SizedBox(height: 2),
                       Text(
-                        formatCurrency(expense, compact: true),
+                        formatCurrency(expense, suffix: suffix, compact: true),
                         style: TextStyle(color: p.expenseColor, fontWeight: FontWeight.w600, fontSize: 12),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -443,7 +444,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                       Text(context.tr('month_net'), style: TextStyle(color: p.subtitleText, fontSize: 10)),
                       const SizedBox(height: 2),
                       Text(
-                        formatCurrency(net, compact: true),
+                        formatCurrency(net, suffix: suffix, compact: true),
                         style: TextStyle(
                           color: net >= 0 ? p.incomeColor : p.expenseColor,
                           fontWeight: FontWeight.w600,
@@ -541,7 +542,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        formatCurrency(t.amount),
+                        formatCurrency(t.amount, suffix: t.currencySuffix),
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: typeColor),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

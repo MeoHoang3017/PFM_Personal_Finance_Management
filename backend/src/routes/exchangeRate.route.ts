@@ -5,6 +5,7 @@ import {
     convert
 } from "../controllers/exchangeRate.controller";
 import { authenticateJWT } from "../middleware/auth.middleware";
+import { exchangeRateUpdateLimiter } from "../config/security";
 
 const router = Router();
 
@@ -12,8 +13,8 @@ const router = Router();
 router.get('/rate', getRate);
 router.post('/convert', convert);
 
-// Protected routes (admin only - can add role check later)
-router.post('/update', authenticateJWT, updateRates);
+// Protected routes: rate-limited (1 req / 5 min) to avoid API abuse
+router.post('/update', exchangeRateUpdateLimiter, authenticateJWT, updateRates);
 
 export default router;
 

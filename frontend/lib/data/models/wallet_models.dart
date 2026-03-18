@@ -5,6 +5,10 @@ class Wallet {
   final String name;
   final double balance;
   final String user;
+  /// Display currency code (e.g. USD, VND) - balance is already in this currency.
+  final String? displayCurrency;
+  /// Currency symbol for display (e.g. $, ₫).
+  final String? currencySymbol;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -13,9 +17,14 @@ class Wallet {
     required this.name,
     required this.balance,
     required this.user,
+    this.displayCurrency,
+    this.currencySymbol,
     this.createdAt,
     this.updatedAt,
   });
+
+  /// Suffix for currency display (space + symbol), e.g. ' ₫' or ' $'.
+  String get currencySuffix => ' ${currencySymbol ?? '₫'}';
 
   factory Wallet.fromJson(Map<String, dynamic> json) {
     return Wallet(
@@ -23,6 +32,8 @@ class Wallet {
       name: json['name'] as String? ?? '',
       balance: (json['balance'] as num?)?.toDouble() ?? 0,
       user: json['user'] as String? ?? '',
+      displayCurrency: json['displayCurrency'] as String?,
+      currencySymbol: json['currencySymbol'] as String?,
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'] as String) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'] as String) : null,
     );

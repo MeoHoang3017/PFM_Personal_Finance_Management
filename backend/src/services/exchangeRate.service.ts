@@ -3,15 +3,21 @@ import ExchangeRate from "../models/exchangeRate.model";
 import Currency from "../models/currency.model";
 import mongoose from "mongoose";
 
+/** Response from other providers (Fixer, CurrencyLayer, legacy v4). */
 interface ExchangeRateApiResponse {
     success?: boolean;
     base?: string;
     date?: string;
     rates?: { [key: string]: number };
-    error?: {
-        code: number;
-        message: string;
-    };
+    error?: { code: number; message: string };
+}
+
+/** ExchangeRate-API v6 response: https://v6.exchangerate-api.com/v6/{API_KEY}/latest/USD */
+interface ExchangeRateApiV6Response {
+    result: "success" | "error";
+    "error-type"?: string;
+    base_code?: string;
+    conversion_rates?: { [key: string]: number };
 }
 
 /**
@@ -28,18 +34,21 @@ async function fetchExchangeRates(baseCurrency: string = 'USD'): Promise<{ [key:
         switch (apiProvider.toLowerCase()) {
             case 'exchangerate-api':
             case 'exchangerate-api.com':
-                // exchangerate-api.com (free tier available, no API key required)
-                const response = await axios.get<ExchangeRateApiResponse>(
-                    `https://api.exchangerate-api.com/v4/latest/${baseCurrency}`,
-                    {
-                        timeout: 10000,
-                    }
-                );
-                
-                if (response.data.rates) {
-                    rates = response.data.rates;
+                // ExchangeRate-API v6: https://v6.exchangerate-api.com/v6/{API_KEY}/latest/USD
+                if (!apiKey || apiKey.trim() === '') {
+                    throw new Error('EXCHANGE_RATE_API_KEY is required for ExchangeRate-API v6. Get a free key at https://www.exchangerate-api.com/');
+                }
+                const url = `https://v6.exchangerate-api.com/v6/${apiKey.trim()}/latest/${baseCurrency}`;
+                const response = await axios.get<ExchangeRateApiV6Response>(url, { timeout: 10000 });
+                const data = response.data;
+                if (data.result === 'error') {
+                    const errType = data['error-type'] || 'unknown';
+                    throw new Error(`ExchangeRate-API v6 error: ${errType}`);
+                }
+                if (data.conversion_rates && typeof data.conversion_rates === 'object') {
+                    rates = data.conversion_rates;
                 } else {
-                    throw new Error('No rates received from exchangerate-api.com');
+                    throw new Error('No conversion_rates in response from ExchangeRate-API v6');
                 }
                 break;
 
@@ -107,6 +116,28 @@ async function getAllCurrencies(): Promise<string[]> {
         console.error('Error fetching currencies:', error.message);
         throw error;
     }
+}
+
+/**
+ * Ensure all currency codes exist in DB. Throws if any code is not supported.
+ */
+async function validateCurrencyCodes(codes: string[]): Promise<void> {
+    const normalized = codes.map(c => c.toUpperCase()).filter(c => /^[A-Z]{3}$/.test(c));
+    const found = await Currency.find({ code: { $in: normalized } }).select('code').lean();
+    const foundSet = new Set(found.map(c => c.code));
+    const missing = normalized.filter(code => !foundSet.has(code));
+    if (missing.length > 0) {
+        throw new Error(`Currency ${missing[0]} is not supported`);
+    }
+}
+
+/**
+ * Get decimal places for a currency (for rounding). Default 2.
+ */
+async function getDecimalPlacesForCurrency(code: string): Promise<number> {
+    const doc = await Currency.findOne({ code: code.toUpperCase() }).select('decimalPlaces').lean();
+    if (doc && typeof (doc as any).decimalPlaces === 'number') return (doc as any).decimalPlaces;
+    return 2;
 }
 
 /**
@@ -205,7 +236,35 @@ async function updateExchangeRates(baseCurrency: string = 'USD'): Promise<{ succ
 }
 
 /**
- * Get exchange rate for specific currencies
+ * Find one rate document (exact date or latest)
+ */
+async function findRate(base: string, target: string, queryDate: Date): Promise<{ rate: number } | null> {
+    const baseU = base.toUpperCase();
+    const targetU = target.toUpperCase();
+
+    const exact = await ExchangeRate.findOne({
+        baseCurrency: baseU,
+        targetCurrency: targetU,
+        date: queryDate,
+    })
+        .sort({ date: -1 })
+        .lean();
+
+    if (exact) return { rate: exact.rate };
+
+    const latest = await ExchangeRate.findOne({
+        baseCurrency: baseU,
+        targetCurrency: targetU,
+    })
+        .sort({ date: -1 })
+        .lean();
+
+    return latest ? { rate: latest.rate } : null;
+}
+
+/**
+ * Get exchange rate for specific currencies.
+ * If direct (base -> target) not stored, tries inverse (target -> base) and returns 1/rate.
  */
 async function getExchangeRate(
     baseCurrency: string,
@@ -213,31 +272,20 @@ async function getExchangeRate(
     date?: Date
 ): Promise<number | null> {
     try {
-        // Normalize to start of day
         const queryDate = date ? new Date(date) : new Date();
         queryDate.setHours(0, 0, 0, 0);
-        
-        const rate = await ExchangeRate.findOne({
-            baseCurrency: baseCurrency.toUpperCase(),
-            targetCurrency: targetCurrency.toUpperCase(),
-            date: queryDate,
-        })
-        .sort({ date: -1 })
-        .lean();
 
-        if (rate) {
-            return rate.rate;
-        }
+        const baseU = baseCurrency.toUpperCase();
+        const targetU = targetCurrency.toUpperCase();
+        if (baseU === targetU) return 1;
 
-        // If not found for today, try to get latest available
-        const latestRate = await ExchangeRate.findOne({
-            baseCurrency: baseCurrency.toUpperCase(),
-            targetCurrency: targetCurrency.toUpperCase(),
-        })
-        .sort({ date: -1 })
-        .lean();
+        const direct = await findRate(baseU, targetU, queryDate);
+        if (direct) return direct.rate;
 
-        return latestRate ? latestRate.rate : null;
+        const inverse = await findRate(targetU, baseU, queryDate);
+        if (inverse) return 1 / inverse.rate;
+
+        return null;
     } catch (error: any) {
         console.error('Error getting exchange rate:', error.message);
         return null;
@@ -245,7 +293,8 @@ async function getExchangeRate(
 }
 
 /**
- * Convert amount from one currency to another
+ * Convert amount from one currency to another.
+ * Validates both currencies exist; rounds result to target currency's decimalPlaces.
  */
 async function convertCurrency(
     amount: number,
@@ -254,18 +303,21 @@ async function convertCurrency(
     date?: Date
 ): Promise<number | null> {
     try {
+        await validateCurrencyCodes([fromCurrency, toCurrency]);
+
         if (fromCurrency.toUpperCase() === toCurrency.toUpperCase()) {
-            return amount;
+            const decimals = await getDecimalPlacesForCurrency(toCurrency);
+            return Math.round(amount * Math.pow(10, decimals)) / Math.pow(10, decimals);
         }
 
         const rate = await getExchangeRate(fromCurrency, toCurrency, date);
-        
-        if (rate === null) {
-            return null;
-        }
+        if (rate === null) return null;
 
-        return amount * rate;
+        const raw = amount * rate;
+        const decimals = await getDecimalPlacesForCurrency(toCurrency);
+        return Math.round(raw * Math.pow(10, decimals)) / Math.pow(10, decimals);
     } catch (error: any) {
+        if (error.message?.includes('not supported')) throw error;
         console.error('Error converting currency:', error.message);
         return null;
     }
@@ -278,5 +330,6 @@ export {
     getExchangeRate,
     convertCurrency,
     getAllCurrencies,
+    validateCurrencyCodes,
 };
 

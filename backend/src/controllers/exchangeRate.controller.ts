@@ -2,7 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import {
     updateExchangeRates,
     getExchangeRate,
-    convertCurrency
+    convertCurrency,
+    validateCurrencyCodes,
 } from "../services/exchangeRate.service";
 import { SuccessResponse, ErrorResponse } from "../constants/Response";
 import { sendResponse } from "../utils/response";
@@ -74,25 +75,33 @@ export const convert = async (req: Request, res: Response, next: NextFunction): 
             return;
         }
 
-        const convertedAmount = await convertCurrency(
-            amount,
-            fromCurrency,
-            toCurrency,
-            date ? new Date(date) : undefined
-        );
+        try {
+            const convertedAmount = await convertCurrency(
+                amount,
+                fromCurrency,
+                toCurrency,
+                date ? new Date(date) : undefined
+            );
 
-        if (convertedAmount === null) {
-            sendResponse(res, ErrorResponse.NOT_FOUND('Exchange rate for conversion'));
-            return;
+            if (convertedAmount === null) {
+                sendResponse(res, ErrorResponse.NOT_FOUND('Exchange rate for conversion'));
+                return;
+            }
+
+            sendResponse(res, SuccessResponse.ITEM('Currency conversion', {
+                amount,
+                fromCurrency,
+                toCurrency,
+                convertedAmount,
+                date: date || new Date(),
+            }));
+        } catch (err: any) {
+            if (err.message?.includes('not supported')) {
+                sendResponse(res, ErrorResponse.BAD_REQUEST_MSG(err.message));
+                return;
+            }
+            throw err;
         }
-
-        sendResponse(res, SuccessResponse.ITEM('Currency conversion', {
-            amount,
-            fromCurrency,
-            toCurrency,
-            convertedAmount,
-            date: date || new Date(),
-        }));
     } catch (error: any) {
         next(createError(error.message || 'Failed to convert currency', 500));
     }

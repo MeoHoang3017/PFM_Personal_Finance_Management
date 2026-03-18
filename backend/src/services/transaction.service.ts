@@ -1,8 +1,11 @@
 import Transaction from "../models/transaction.model";
 import Wallet from "../models/wallet.model";
+import User from "../models/user.model";
 import { paginate } from "../utils/pagination";
 import { TransactionResponse, PaginatedTransactionsResponse, CreateTransactionData, UpdateTransactionData, TransactionFilter } from "../types/transaction.type";
 import mongoose from "mongoose";
+import { getCurrencyByCodeService } from "./currency.service";
+import { convertCurrency } from "./exchangeRate.service";
 
 /**
  * MongoDB transactions (session.startTransaction) chỉ chạy trên replica set.
@@ -21,7 +24,12 @@ function useMongoTransactions(): boolean {
     return process.env.USE_MONGODB_TRANSACTIONS === "true" && _mongoTransactionsSupported !== false;
 }
 
-function formatTransactionResponse(transaction: any): TransactionResponse {
+function formatTransactionResponse(
+    transaction: any,
+    displayAmount: number,
+    displayCurrency: string,
+    currencySymbol: string
+): TransactionResponse {
     const cat = transaction.category;
     const categoryId =
         cat != null
@@ -33,7 +41,7 @@ function formatTransactionResponse(transaction: any): TransactionResponse {
         typeof cat === 'object' && cat != null && typeof cat.name === 'string' ? cat.name : undefined;
     return {
         id: transaction._id.toString(),
-        amount: transaction.amount,
+        amount: displayAmount,
         type: transaction.type,
         category: categoryId,
         ...(categoryName != null ? { categoryName } : {}),
@@ -42,12 +50,42 @@ function formatTransactionResponse(transaction: any): TransactionResponse {
         notes: transaction.notes || '',
         wallet: (transaction.wallet && (transaction.wallet._id ?? transaction.wallet)).toString(),
         user: (transaction.user && (transaction.user._id ?? transaction.user)).toString(),
+        displayCurrency,
+        currencySymbol,
         createdAt: transaction.createdAt,
         updatedAt: transaction.updatedAt,
     };
 }
 
-// Get user transactions with pagination and filters
+async function _getDisplayCurrencyAndSymbol(userId: string): Promise<{ displayCurrency: string; currencySymbol: string }> {
+    const user = await User.findById(userId).select('currency').lean();
+    const displayCurrency = (user?.currency as string) || 'USD';
+    const currencyDoc = await getCurrencyByCodeService(displayCurrency);
+    const currencySymbol = currencyDoc?.symbol ?? displayCurrency;
+    return { displayCurrency, currencySymbol };
+}
+
+/** Convert transaction amount to user's display currency and format response. */
+async function _formatTransactionWithConversion(transaction: any, userId: string): Promise<TransactionResponse> {
+    const walletCurrency =
+        (transaction.wallet && typeof transaction.wallet === 'object' && transaction.wallet.currency)
+            ? transaction.wallet.currency
+            : 'USD';
+    const { displayCurrency, currencySymbol } = await _getDisplayCurrencyAndSymbol(userId);
+    let displayAmount = transaction.amount ?? 0;
+    if (walletCurrency !== displayCurrency) {
+        const converted = await convertCurrency(
+            transaction.amount,
+            walletCurrency,
+            displayCurrency,
+            transaction.date
+        );
+        if (converted !== null) displayAmount = converted;
+    }
+    return formatTransactionResponse(transaction, displayAmount, displayCurrency, currencySymbol);
+}
+
+// Get user transactions with pagination and filters (amounts in user's display currency)
 async function getUserTransactionsService(
     filter: TransactionFilter,
     page: number = 1,
@@ -73,29 +111,53 @@ async function getUserTransactionsService(
         }
         
         const totalItems = await Transaction.countDocuments(query);
-        
         const transactions = await Transaction.find(query)
             .populate('category', 'name')
+            .populate('wallet', 'currency')
             .sort({ date: -1, createdAt: -1 })
             .skip(skip)
             .limit(pageSize)
             .lean();
         
-        const formattedTransactions = transactions.map(formatTransactionResponse);
+        const { displayCurrency, currencySymbol } = await _getDisplayCurrencyAndSymbol(filter.user);
+        const formattedTransactions: TransactionResponse[] = [];
+        for (const tx of transactions) {
+            const walletCurrency =
+                (tx.wallet && typeof tx.wallet === 'object' && (tx.wallet as any).currency)
+                    ? (tx.wallet as any).currency
+                    : 'USD';
+            let displayAmount = (tx as any).amount ?? 0;
+            if (walletCurrency !== displayCurrency) {
+                const converted = await convertCurrency(
+                    (tx as any).amount,
+                    walletCurrency,
+                    displayCurrency,
+                    (tx as any).date
+                );
+                if (converted !== null) displayAmount = converted;
+            }
+            formattedTransactions.push(
+                formatTransactionResponse(tx, displayAmount, displayCurrency, currencySymbol)
+            );
+        }
         return paginate(formattedTransactions, page, pageSize, totalItems);
     } catch (error) {
         throw error;
     }
 }
 
-// Get transaction by ID
+// Get transaction by ID (amount in user's display currency)
 async function getTransactionByIdService(transactionId: string): Promise<TransactionResponse> {
     try {
-        const transaction = await Transaction.findById(transactionId).populate('category', 'name').lean();
+        const transaction = await Transaction.findById(transactionId)
+            .populate('category', 'name')
+            .populate('wallet', 'currency')
+            .lean();
         if (!transaction) {
             throw new Error('Transaction not found');
         }
-        return formatTransactionResponse(transaction);
+        const userId = (transaction as any).user?.toString?.() ?? (transaction as any).user ?? '';
+        return _formatTransactionWithConversion(transaction, userId);
     } catch (error) {
         throw error;
     }
@@ -127,8 +189,11 @@ async function _createWithSession(data: CreateTransactionData): Promise<Transact
         });
         const saved = await transaction.save({ session });
         await session.commitTransaction();
-        const populated = await Transaction.findById(saved._id).populate('category', 'name').lean();
-        return formatTransactionResponse(populated ?? saved);
+        const populated = await Transaction.findById(saved._id)
+            .populate('category', 'name')
+            .populate('wallet', 'currency')
+            .lean();
+        return _formatTransactionWithConversion(populated ?? saved, data.user);
     } catch (error) {
         await session.abortTransaction().catch(() => {});
         throw error;
@@ -156,8 +221,11 @@ async function _createNoSession(data: CreateTransactionData): Promise<Transactio
             user: new mongoose.Types.ObjectId(data.user),
         });
         const saved = await transaction.save();
-        const populated = await Transaction.findById(saved._id).populate('category', 'name').lean();
-        return formatTransactionResponse(populated ?? saved);
+        const populated = await Transaction.findById(saved._id)
+            .populate('category', 'name')
+            .populate('wallet', 'currency')
+            .lean();
+        return _formatTransactionWithConversion(populated ?? saved, data.user);
     } catch (error) {
         wallet.balance = previousBalance;
         await wallet.save();
@@ -220,8 +288,11 @@ async function _updateWithSession(transactionId: string, data: UpdateTransaction
         const updated = await Transaction.findByIdAndUpdate(transactionId, update, { new: true, session });
             if (!updated) throw new Error('Transaction not found');
             await session.commitTransaction();
-            const populated = await Transaction.findById(updated._id).populate('category', 'name').lean();
-            return formatTransactionResponse(populated ?? updated);
+            const populated = await Transaction.findById(updated._id)
+                .populate('category', 'name')
+                .populate('wallet', 'currency')
+                .lean();
+            return _formatTransactionWithConversion(populated ?? updated, updated.user.toString());
     } catch (error) {
         await session.abortTransaction().catch(() => {});
         throw error;
@@ -249,6 +320,8 @@ async function updateTransactionService(
     return _updateNoSession(transactionId, data);
 }
 
+interface IWalletDoc { balance: number; save(options?: any): Promise<any> }
+
 async function _updateNoSession(transactionId: string, data: UpdateTransactionData): Promise<TransactionResponse> {
     const transaction = await Transaction.findById(transactionId);
     if (!transaction) {
@@ -256,13 +329,13 @@ async function _updateNoSession(transactionId: string, data: UpdateTransactionDa
     }
 
     const needsWalletUpdate = data.amount !== undefined || data.type !== undefined || data.wallet !== undefined;
-    let oldWallet: Awaited<ReturnType<typeof Wallet.findById>> = null;
-    let newWallet: Awaited<ReturnType<typeof Wallet.findById>> = null;
+    let oldWallet: IWalletDoc | null = null;
+    let newWallet: IWalletDoc | null = null;
     const oldWalletBalanceBefore: number[] = [];
     const newWalletBalanceBefore: number[] = [];
 
     if (needsWalletUpdate) {
-        oldWallet = await Wallet.findById(transaction.wallet);
+        oldWallet = await Wallet.findById(transaction.wallet) as IWalletDoc | null;
         if (oldWallet) {
             oldWalletBalanceBefore.push(oldWallet.balance);
             if (transaction.type === 'income') {
@@ -274,10 +347,11 @@ async function _updateNoSession(transactionId: string, data: UpdateTransactionDa
         }
 
         const walletId = data.wallet !== undefined ? data.wallet : transaction.wallet.toString();
-        newWallet = await Wallet.findById(walletId);
+        newWallet = await Wallet.findById(walletId) as IWalletDoc | null;
         if (!newWallet) {
-            if (oldWallet) {
-                oldWallet.balance = oldWalletBalanceBefore[0];
+            const prevBalance = oldWalletBalanceBefore[0];
+            if (oldWallet && prevBalance !== undefined) {
+                oldWallet.balance = prevBalance;
                 await oldWallet.save();
             }
             throw new Error('Wallet not found');
@@ -306,15 +380,20 @@ async function _updateNoSession(transactionId: string, data: UpdateTransactionDa
         if (!updated) {
             throw new Error('Transaction not found');
         }
-        const populated = await Transaction.findById(updated._id).populate('category', 'name').lean();
-        return formatTransactionResponse(populated ?? updated);
+        const populated = await Transaction.findById(updated._id)
+            .populate('category', 'name')
+            .populate('wallet', 'currency')
+            .lean();
+        return _formatTransactionWithConversion(populated ?? updated, updated.user.toString());
     } catch (error) {
-        if (oldWallet && oldWalletBalanceBefore.length > 0) {
-            oldWallet.balance = oldWalletBalanceBefore[0];
+        const prevOld = oldWalletBalanceBefore[0];
+        if (oldWallet && prevOld !== undefined) {
+            oldWallet.balance = prevOld;
             await oldWallet.save();
         }
-        if (newWallet && newWalletBalanceBefore.length > 0) {
-            newWallet.balance = newWalletBalanceBefore[0];
+        const prevNew = newWalletBalanceBefore[0];
+        if (newWallet && prevNew !== undefined) {
+            newWallet.balance = prevNew;
             await newWallet.save();
         }
         throw error;
@@ -421,8 +500,11 @@ async function _duplicateWithSession(transactionId: string): Promise<Transaction
         });
         const saved = await duplicated.save({ session });
         await session.commitTransaction();
-        const populated = await Transaction.findById(saved._id).populate('category', 'name').lean();
-        return formatTransactionResponse(populated ?? saved);
+        const populated = await Transaction.findById(saved._id)
+            .populate('category', 'name')
+            .populate('wallet', 'currency')
+            .lean();
+        return _formatTransactionWithConversion(populated ?? saved, original.user.toString());
     } catch (error) {
         await session.abortTransaction().catch(() => {});
         throw error;
@@ -459,8 +541,11 @@ async function _duplicateNoSession(transactionId: string): Promise<TransactionRe
             user: original.user,
         });
         const saved = await duplicated.save();
-        const populated = await Transaction.findById(saved._id).populate('category', 'name').lean();
-        return formatTransactionResponse(populated ?? saved);
+        const populated = await Transaction.findById(saved._id)
+            .populate('category', 'name')
+            .populate('wallet', 'currency')
+            .lean();
+        return _formatTransactionWithConversion(populated ?? saved, original.user.toString());
     } catch (error) {
         wallet.balance = previousBalance;
         await wallet.save();

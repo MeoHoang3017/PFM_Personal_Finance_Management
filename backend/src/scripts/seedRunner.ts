@@ -7,12 +7,14 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { connectDB } from "../config/database";
 import { runSeedDefaultCategories } from "./seedDefaultCategories";
+import { runSeedCurrenciesAndExchangeRates } from "./seedCurrenciesAndExchangeRates";
 
 dotenv.config();
 
 async function main() {
   await connectDB();
   await runSeedDefaultCategories();
+  await runSeedCurrenciesAndExchangeRates();
   await mongoose.disconnect();
   console.log("Done.");
   process.exit(0);

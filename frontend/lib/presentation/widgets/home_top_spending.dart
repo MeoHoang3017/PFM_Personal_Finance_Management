@@ -79,6 +79,7 @@ class _HomeTopSpendingState extends State<HomeTopSpending> {
     final p = pfmPaletteOf(context);
     final items = _byCategory;
     final total = _filtered.fold<double>(0, (s, t) => s + t.amount);
+    final suffix = _filtered.isNotEmpty ? _filtered.first.currencySuffix : ' ₫';
 
     return SectionCard(
       padding: EdgeInsets.zero,
@@ -168,7 +169,7 @@ class _HomeTopSpendingState extends State<HomeTopSpending> {
                             ),
                           ),
                           Text(
-                            formatCurrency(item.amount),
+                            formatCurrency(item.amount, suffix: suffix),
                             style: TextStyle(
                               color: p.expenseColor,
                               fontWeight: FontWeight.bold,

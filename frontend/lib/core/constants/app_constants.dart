@@ -8,10 +8,13 @@ class AppConstants {
     'API_BASE_URL',
     defaultValue: 'http://localhost:5000',
   );
+  /// iOS/Web: OAuth Client ID (optional on Android). Cùng project với serverClientId.
   static const String googleClientId = String.fromEnvironment(
     'GOOGLE_CLIENT_ID',
     defaultValue: '',
   );
+  /// Bắt buộc: Web Client ID từ Google Cloud. Backend .env GOOGLE_WEB_CLIENT_ID phải = giá trị này.
+  /// Build: flutter run --dart-define=GOOGLE_SERVER_CLIENT_ID=xxx.apps.googleusercontent.com
   static const String googleServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',
     defaultValue:

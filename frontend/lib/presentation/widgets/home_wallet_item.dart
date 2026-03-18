@@ -29,7 +29,7 @@ class HomeWalletItem extends StatelessWidget {
         ),
       ),
       trailing: Text(
-        formatCurrency(wallet.balance, compact: true),
+        formatCurrency(wallet.balance, suffix: wallet.currencySuffix, compact: true),
         style: TextStyle(
           color: p.primaryText,
           fontWeight: FontWeight.bold,
