@@ -67,7 +67,7 @@ export const createTransaction = async (req: Request, res: Response, next: NextF
 
         const { amount, type, category, date, description, notes, wallet } = req.body;
 
-        if (!amount || !type || !category || !wallet) {
+        if (amount === undefined || amount === null || !type || !category || !wallet) {
             sendResponse(res, ErrorResponse.MISSING_FIELDS(['amount', 'type', 'category', 'wallet']));
             return;
         }

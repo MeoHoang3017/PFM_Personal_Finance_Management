@@ -4,6 +4,8 @@ export interface TransactionResponse {
     id: string;
     /** Amount in user's display currency (converted from wallet currency if needed). */
     amount: number;
+    /** Currency of this transaction amount (captured at creation time). */
+    currency: string;
     type: 'income' | 'expense' | 'transfer';
     /** Category id (ObjectId string). */
     category: string;

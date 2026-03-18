@@ -60,7 +60,7 @@ async function fetchExchangeRates(baseCurrency: string = 'USD'): Promise<{ [key:
                 }
                 
                 const fixerResponse = await axios.get<ExchangeRateApiResponse>(
-                    `http://data.fixer.io/api/latest?access_key=${apiKey}&base=${baseCurrency}`,
+                    `https://data.fixer.io/api/latest?access_key=${apiKey}&base=${baseCurrency}`,
                     {
                         timeout: 10000,
                     }
@@ -81,7 +81,7 @@ async function fetchExchangeRates(baseCurrency: string = 'USD'): Promise<{ [key:
                 }
                 
                 const currencyLayerResponse = await axios.get<ExchangeRateApiResponse>(
-                    `http://api.currencylayer.com/live?access_key=${apiKey}&source=${baseCurrency}`,
+                    `https://api.currencylayer.com/live?access_key=${apiKey}&source=${baseCurrency}`,
                     {
                         timeout: 10000,
                     }
@@ -153,27 +153,40 @@ async function saveExchangeRates(
     
     try {
         let savedCount = 0;
+        const baseU = baseCurrency.toUpperCase();
         // Normalize to start of day (create new date to avoid mutating original)
         const dateOnly = new Date(date);
         dateOnly.setHours(0, 0, 0, 0);
 
-        for (const [targetCurrency, rate] of Object.entries(rates)) {
-            // Skip if same currency
-            if (targetCurrency === baseCurrency) continue;
+        for (const [rawKey, rate] of Object.entries(rates)) {
+            if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) continue;
 
-            // Validate currency code format
-            if (!/^[A-Z]{3}$/.test(targetCurrency)) continue;
+            /**
+             * Normalize target currency code:
+             * - exchangerate-api/fixer: key is "VND", "EUR"...
+             * - currencylayer: key is usually "USDVND", "USDEUR"... (base+target)
+             */
+            let targetU = rawKey.toUpperCase().trim();
+            if (/^[A-Z]{6}$/.test(targetU) && targetU.startsWith(baseU)) {
+                targetU = targetU.substring(3);
+            }
+
+            // Skip if same currency
+            if (targetU === baseU) continue;
+
+            // Validate currency code format (must be 3 letters after normalization)
+            if (!/^[A-Z]{3}$/.test(targetU)) continue;
 
             try {
                 await ExchangeRate.findOneAndUpdate(
                     {
-                        baseCurrency,
-                        targetCurrency,
+                        baseCurrency: baseU,
+                        targetCurrency: targetU,
                         date: dateOnly,
                     },
                     {
-                        baseCurrency,
-                        targetCurrency,
+                        baseCurrency: baseU,
+                        targetCurrency: targetU,
                         rate,
                         date: dateOnly,
                         source: process.env.EXCHANGE_RATE_API_PROVIDER || 'exchange-rate-api',
@@ -187,7 +200,7 @@ async function saveExchangeRates(
                 savedCount++;
             } catch (error: any) {
                 // Log but continue with other rates
-                console.warn(`Failed to save rate for ${baseCurrency} -> ${targetCurrency}:`, error.message);
+                console.warn(`Failed to save rate for ${baseU} -> ${targetU}:`, error.message);
             }
         }
 

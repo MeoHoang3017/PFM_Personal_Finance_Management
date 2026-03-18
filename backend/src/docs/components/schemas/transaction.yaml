@@ -7,6 +7,9 @@ Transaction:
     amount:
       type: number
       example: 100.50
+    currency:
+      type: string
+      example: "USD"
     type:
       type: string
       enum: [income, expense, transfer]
@@ -44,6 +47,7 @@ CreateTransactionRequest:
       type: number
       minimum: 0
       example: 100.50
+    # currency is auto-assigned by backend (user's current currency)
     type:
       type: string
       enum: [income, expense, transfer]

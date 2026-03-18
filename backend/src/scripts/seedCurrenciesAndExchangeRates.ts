@@ -11,6 +11,10 @@ import Currency from "../models/currency.model";
 
 dotenv.config();
 
+const isDirectRun =
+  typeof process.argv[1] === "string" &&
+  process.argv[1].replace(/\\/g, "/").endsWith("seedCurrenciesAndExchangeRates.ts");
+
 /** Map currency code -> { name, symbol } (ISO 4217 style) */
 const CURRENCY_META: Record<string, { name: string; symbol: string }> = {
   USD: { name: "US Dollar", symbol: "$" },
@@ -188,29 +192,40 @@ const ZERO_DECIMAL_CODES = new Set([
 
 export async function runSeedCurrenciesAndExchangeRates(): Promise<void> {
   const codes = Object.keys(CURRENCY_META);
-  let created = 0;
+  let upserted = 0;
   let updated = 0;
+
+  // Use native collection.updateOne with upsert to avoid Mongoose create/save path and duplicate key errors.
+  const collection = Currency.collection;
 
   for (const code of codes) {
     const meta = CURRENCY_META[code]!;
     const name = meta.name;
     const symbol = meta.symbol;
     const decimalPlaces = ZERO_DECIMAL_CODES.has(code) ? 0 : 2;
+    const codeUpper = code.toUpperCase();
 
-    const existing = await Currency.findOne({ code });
-    if (existing) {
-      await Currency.updateOne(
-        { code },
-        { $set: { name, symbol, decimalPlaces } }
-      );
-      updated++;
-    } else {
-      await Currency.create({ code, name, symbol, decimalPlaces });
-      created++;
-    }
+    const result = await collection.updateOne(
+      { code: codeUpper },
+      {
+        $set: {
+          code: codeUpper,
+          name,
+          symbol,
+          decimalPlaces,
+          updatedAt: new Date(),
+        },
+        $setOnInsert: {
+          createdAt: new Date(),
+        },
+      },
+      { upsert: true }
+    );
+    if (result.upsertedCount && result.upsertedCount > 0) upserted++;
+    else if (result.modifiedCount && result.modifiedCount > 0) updated++;
   }
 
-  console.log(`[Seed Currencies] Created: ${created}, Updated: ${updated}, Total codes: ${codes.length}. Exchange rates will be fetched daily by scheduler.`);
+  console.log(`[Seed Currencies] Upserted: ${upserted}, Updated: ${updated}, Total codes: ${codes.length}. Exchange rates will be fetched daily by scheduler.`);
 }
 
 async function main() {
@@ -221,7 +236,10 @@ async function main() {
   process.exit(0);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Chỉ chạy main() khi file được chạy trực tiếp (npm run seed:currencies), không chạy khi bị import từ seedSampleData.
+if (isDirectRun) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

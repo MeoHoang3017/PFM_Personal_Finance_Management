@@ -12,8 +12,9 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { connectDB } from "../config/database";
 import { runSeedDefaultCategories } from "./seedDefaultCategories";
+import { runSeedCurrenciesAndExchangeRates } from "./seedCurrenciesAndExchangeRates";
 import { hashPassword } from "../utils/hasher";
-import { User, Wallet, Transaction, Category, Budget, Goal } from "../models";
+import { User, Wallet, Transaction, Category, Budget, Goal, ExchangeRate } from "../models";
 
 dotenv.config();
 
@@ -45,6 +46,8 @@ const EXPENSE_DESCRIPTIONS: Record<string, string[]> = {
 
 const INCOME_AMOUNTS = [500000, 1000000, 3000000, 5000000, 15000000, 20000000, 25000000];
 const EXPENSE_AMOUNTS = [15000, 35000, 50000, 75000, 120000, 200000, 350000, 500000, 800000, 1500000];
+const INCOME_AMOUNTS_USD = [50, 100, 200, 500, 1000, 2000, 5000];
+const EXPENSE_AMOUNTS_USD = [2, 3, 5, 8, 10, 15, 20, 30, 50, 80];
 
 function randomInt(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -72,8 +75,34 @@ function randomDateInRange(start: Date, end: Date): Date {
   return new Date(t);
 }
 
+async function seedFixedExchangeRatesForToday(): Promise<void> {
+  const dateOnly = new Date();
+  dateOnly.setHours(0, 0, 0, 0);
+
+  // Minimal sample rates (base USD) to make conversion work offline. Use updateOne + upsert to avoid duplicate key.
+  const samples: Array<{ baseCurrency: string; targetCurrency: string; rate: number }> = [
+    { baseCurrency: "USD", targetCurrency: "VND", rate: 25000 },
+    { baseCurrency: "USD", targetCurrency: "EUR", rate: 0.92 },
+    { baseCurrency: "USD", targetCurrency: "GBP", rate: 0.79 },
+    { baseCurrency: "USD", targetCurrency: "JPY", rate: 150 },
+  ];
+
+  for (const s of samples) {
+    await ExchangeRate.updateOne(
+      { baseCurrency: s.baseCurrency, targetCurrency: s.targetCurrency, date: dateOnly },
+      { $set: { baseCurrency: s.baseCurrency, targetCurrency: s.targetCurrency, rate: s.rate, date: dateOnly, source: "seed" } },
+      { upsert: true }
+    );
+  }
+
+  console.log(`[Seed Exchange Rates] Upserted ${samples.length} sample USD rates for ${dateOnly.toISOString().slice(0, 10)}`);
+}
+
 export async function runSeedSampleData(): Promise<void> {
+  // Ensure currency metadata exists for validation + symbols + decimal places.
+  await runSeedCurrenciesAndExchangeRates();
   await runSeedDefaultCategories();
+  await seedFixedExchangeRatesForToday();
 
   const categories = await Category.find({ user: null }).lean();
   const incomeCats = categories.filter((c) => c.type === "income");
@@ -84,7 +113,8 @@ export async function runSeedSampleData(): Promise<void> {
     return;
   }
 
-  const userWallets: { userId: mongoose.Types.ObjectId; wallets: mongoose.Types.ObjectId[] }[] = [];
+  type WalletSeedRef = { id: mongoose.Types.ObjectId; currency: string };
+  const userWallets: { userId: mongoose.Types.ObjectId; wallets: WalletSeedRef[] }[] = [];
 
   // --- Tạo user và ví ---
   for (const u of SAMPLE_USERS) {
@@ -105,34 +135,48 @@ export async function runSeedSampleData(): Promise<void> {
       console.log(`User ${u.email} already exists.`);
     }
 
-    let wallets = await Wallet.find({ user: user._id }).lean();
-    if (wallets.length === 0) {
-      const defaultWallet = new Wallet({ name: "Ví mặc định", balance: 0, currency: u.currency, user: user._id });
-      await defaultWallet.save();
-      const defaultLean = await Wallet.findById(defaultWallet._id).lean();
-      if (defaultLean) wallets = [defaultLean];
-      if (u.username === "demo") {
-        const second = new Wallet({ name: "Ví tiết kiệm", balance: 0, currency: u.currency, user: user._id });
-        await second.save();
-        const secondLean = await Wallet.findById(second._id).lean();
-        if (secondLean) wallets.push(secondLean);
-      }
-      console.log(`Created ${wallets.length} wallet(s) for ${u.email}`);
+    // Ensure wallets exist by name to avoid duplicates on re-run. Create only if not found.
+    let defaultDoc = await Wallet.findOne({ user: user._id, name: "Ví mặc định" }).lean();
+    if (!defaultDoc) {
+      const created = await Wallet.create({ name: "Ví mặc định", balance: 0, currency: u.currency, user: user._id });
+      defaultDoc = created.toObject();
     }
-    userWallets.push({ userId: user._id, wallets: wallets.map((w) => w._id) });
+    const wallets: Array<{ _id: mongoose.Types.ObjectId; currency: string }> = [
+      { _id: defaultDoc._id as mongoose.Types.ObjectId, currency: (defaultDoc.currency as string) || "USD" },
+    ];
+    if (u.username === "demo") {
+      let secondDoc = await Wallet.findOne({ user: user._id, name: "Ví tiết kiệm (USD)" }).lean();
+      if (!secondDoc) {
+        const created = await Wallet.create({ name: "Ví tiết kiệm (USD)", balance: 0, currency: "USD", user: user._id });
+        secondDoc = created.toObject();
+      }
+      wallets.push({ _id: secondDoc._id as mongoose.Types.ObjectId, currency: "USD" });
+    }
+    if (u.currency.toUpperCase() === "USD") {
+      let vndDoc = await Wallet.findOne({ user: user._id, name: "Ví chi tiêu (VND)" }).lean();
+      if (!vndDoc) {
+        const created = await Wallet.create({ name: "Ví chi tiêu (VND)", balance: 0, currency: "VND", user: user._id });
+        vndDoc = created.toObject();
+      }
+      wallets.push({ _id: vndDoc._id as mongoose.Types.ObjectId, currency: "VND" });
+    }
+    console.log(`Wallets for ${u.email}: ${wallets.length}`);
+    userWallets.push({
+      userId: user._id,
+      wallets: wallets.map((w) => ({ id: w._id, currency: w.currency || "USD" })),
+    });
   }
 
-  // --- Giao dịch: 12 tháng, mỗi user ~25–45 giao dịch/tháng, dùng categoryId ---
+  // --- Giao dịch: 12 tháng, mỗi user ~25–45 giao dịch/tháng. Chỉ seed khi user chưa có giao dịch để tránh duplicate khi chạy lại. ---
   for (const { userId, wallets } of userWallets) {
     const existingCount = await Transaction.countDocuments({ user: userId });
-    if (existingCount >= 400) {
-      console.log(`User ${userId} already has ${existingCount} transactions. Skip.`);
+    if (existingCount > 0) {
+      console.log(`User ${userId} already has ${existingCount} transactions. Skip transaction seed.`);
       continue;
     }
 
-    const defaultWalletId = wallets[0]!;
-    let totalIncome = 0;
-    let totalExpense = 0;
+    const balanceByWalletId = new Map<string, number>();
+    for (const w of wallets) balanceByWalletId.set(w.id.toString(), 0);
 
     for (let monthOffset = 0; monthOffset < 12; monthOffset++) {
       const { start, end } = getMonthRange(monthOffset);
@@ -140,6 +184,9 @@ export async function runSeedSampleData(): Promise<void> {
       const transactions: any[] = [];
 
       for (let i = 0; i < count; i++) {
+        const walletRef = randomChoice(wallets);
+        const walletId = walletRef.id;
+        const walletCurrency = (walletRef.currency || "USD").toUpperCase();
         const isIncome = Math.random() < 0.35;
         const catDoc = isIncome ? randomChoice(incomeCats) : randomChoice(expenseCats);
         const categoryId = catDoc._id;
@@ -147,31 +194,47 @@ export async function runSeedSampleData(): Promise<void> {
         const descMap = isIncome ? INCOME_DESCRIPTIONS : EXPENSE_DESCRIPTIONS;
         const options = (descMap as any)[categoryName];
         const description = Array.isArray(options) ? randomChoice(options) : (isIncome ? "Thu nhập" : "Chi tiêu");
-        const amount = isIncome ? randomChoice(INCOME_AMOUNTS) : randomChoice(EXPENSE_AMOUNTS);
+        const amount =
+          walletCurrency === "USD"
+            ? (isIncome ? randomChoice(INCOME_AMOUNTS_USD) : randomChoice(EXPENSE_AMOUNTS_USD))
+            : (isIncome ? randomChoice(INCOME_AMOUNTS) : randomChoice(EXPENSE_AMOUNTS));
         const date = randomDateInRange(start, end);
 
         transactions.push({
           amount,
+          // Store transaction currency consistent with the wallet currency.
+          currency: walletCurrency,
           type: isIncome ? "income" : "expense",
           category: categoryId,
           date,
           description,
           notes: "",
-          wallet: defaultWalletId,
+          wallet: walletId,
           user: userId,
         });
 
-        if (isIncome) totalIncome += amount;
-        else totalExpense += amount;
+        const key = walletId.toString();
+        const prev = balanceByWalletId.get(key) ?? 0;
+        balanceByWalletId.set(key, isIncome ? prev + amount : prev - amount);
       }
 
-      await Transaction.insertMany(transactions);
+      try {
+        await Transaction.insertMany(transactions);
+      } catch (err: any) {
+        if (err?.code === 11000) {
+          console.warn(`User ${userId}: duplicate transaction key, skip month ${monthOffset}`);
+        } else {
+          throw err;
+        }
+      }
     }
 
-    const balance = totalIncome - totalExpense;
-    await Wallet.updateOne({ _id: defaultWalletId }, { $set: { balance } });
+    // Update wallet balances based on seeded transactions per wallet currency.
+    for (const [walletId, balance] of balanceByWalletId.entries()) {
+      await Wallet.updateOne({ _id: new mongoose.Types.ObjectId(walletId) }, { $set: { balance } });
+    }
     const totalTx = await Transaction.countDocuments({ user: userId });
-    console.log(`User ${userId}: ${totalTx} transactions, balance ${balance}`);
+    console.log(`User ${userId}: ${totalTx} transactions across ${wallets.length} wallet(s)`);
   }
 
   // --- Ngân sách: mỗi user 2–4 budget monthly (expense category), tháng hiện tại ---
@@ -187,18 +250,22 @@ export async function runSeedSampleData(): Promise<void> {
     for (const cat of budgetCategories) {
       const already = await Budget.findOne({ user: userId, category: cat._id, startDate: budgetStart });
       if (already) continue;
-
-      await Budget.create({
-        amount: randomChoice([500000, 1000000, 2000000, 3000000]),
-        category: cat._id,
-        period: "monthly",
-        startDate: budgetStart,
-        endDate: budgetEnd,
-        user: userId,
-        isActive: true,
-      });
+      try {
+        await Budget.create({
+          amount: randomChoice([500000, 1000000, 2000000, 3000000]),
+          category: cat._id,
+          period: "monthly",
+          startDate: budgetStart,
+          endDate: budgetEnd,
+          user: userId,
+          isActive: true,
+        });
+      } catch (err: any) {
+        if (err?.code !== 11000) throw err;
+        // Duplicate key, skip
+      }
     }
-    console.log(`Budgets created for user ${userId}`);
+    console.log(`Budgets ensured for user ${userId}`);
   }
 
   // --- Mục tiêu: mỗi user 2–3 goals, dueDate trong tương lai ---
@@ -217,15 +284,20 @@ export async function runSeedSampleData(): Promise<void> {
       const t = goalTemplates[i]!;
       const exists = await Goal.findOne({ user: userId, title: t.title });
       if (exists) continue;
-      await Goal.create({
-        title: t.title,
-        targetAmount: t.targetAmount,
-        currentAmount: t.currentAmount,
-        dueDate: new Date(dueDate.getTime() + i * 30 * 24 * 60 * 60 * 1000),
-        user: userId,
-      });
+      try {
+        await Goal.create({
+          title: t.title,
+          targetAmount: t.targetAmount,
+          currentAmount: t.currentAmount,
+          dueDate: new Date(dueDate.getTime() + i * 30 * 24 * 60 * 60 * 1000),
+          user: userId,
+        });
+      } catch (err: any) {
+        if (err?.code !== 11000) throw err;
+        // Duplicate key, skip
+      }
     }
-    console.log(`Goals created for user ${userId}`);
+    console.log(`Goals ensured for user ${userId}`);
   }
 
   console.log("Seed sample data done. Use demo@pfm.local / 123456 to test.");
