@@ -32,22 +32,49 @@ String formatNumberWithCommas(num value, {int decimalDigits = 0}) {
 /// Định dạng tiền.
 ///
 /// [amount]: số tiền (có thể âm).
-/// [suffix]: chuỗi đơn vị (mặc định " ₫").
+/// [suffix]: chuỗi đơn vị (ví dụ: " ₫", " $"). Nếu không truyền, sẽ suy ra từ [currencyCode] (nếu có).
 /// [compact]: nếu true thì ưu tiên dạng thu gọn (1.2M, 1.5K) khi số dài.
 /// [compactThreshold]: số chữ số từ ngưỡng này trở lên sẽ thu gọn (mặc định 7).
 ///   Ví dụ: 1,000,000 có 7 chữ số → thu gọn thành "1.0M" nếu dùng ngưỡng 7.
+String currencySymbolFromCode(String? code) {
+  switch ((code ?? '').toUpperCase()) {
+    case 'VND':
+      return '₫';
+    case 'USD':
+      return r'$';
+    case 'EUR':
+      return '€';
+    case 'GBP':
+      return '£';
+    case 'JPY':
+      return '¥';
+    case 'CNY':
+      return '¥';
+    case 'KRW':
+      return '₩';
+    case 'INR':
+      return '₹';
+    case 'THB':
+      return '฿';
+    default:
+      return (code != null && code.trim().isNotEmpty) ? code.toUpperCase() : '₫';
+  }
+}
+
 String formatCurrency(
   num amount, {
-  String suffix = ' ₫',
+  String? suffix,
+  String? currencyCode,
   bool compact = false,
   int? compactThreshold,
 }) {
   final threshold = compactThreshold ?? kDefaultCompactThreshold;
   final digitCount = amount.abs().toInt().toString().length;
   final useCompact = compact || digitCount >= threshold;
+  final resolvedSuffix = suffix ?? ' ${currencySymbolFromCode(currencyCode)}';
 
   if (useCompact) {
-    return _compactValue(amount) + suffix;
+    return _compactValue(amount) + resolvedSuffix;
   }
-  return formatNumberWithCommas(amount) + suffix;
+  return formatNumberWithCommas(amount) + resolvedSuffix;
 }

@@ -70,7 +70,7 @@ export const convert = async (req: Request, res: Response, next: NextFunction): 
     try {
         const { amount, fromCurrency, toCurrency, date } = req.body;
 
-        if (!amount || !fromCurrency || !toCurrency) {
+        if (amount === undefined || amount === null || fromCurrency == null || toCurrency == null) {
             sendResponse(res, ErrorResponse.MISSING_FIELDS(['amount', 'fromCurrency', 'toCurrency']));
             return;
         }

@@ -26,11 +26,18 @@ class TransactionService {
       if (startDate != null) q['startDate'] = startDate.toUtc().toIso8601String();
       if (endDate != null) q['endDate'] = endDate.toUtc().toIso8601String();
       final res = await _api.dio.get('/transactions', queryParameters: q);
-      final data = res.data as Map<String, dynamic>;
+      final data = res.data;
+      if (data == null || data is! Map<String, dynamic>) {
+        return ApiResponse(code: 502, message: 'Invalid response format from server', result: null);
+      }
       final result = data['result'];
       if (result == null) return ApiResponse(code: data['code'] as int? ?? 200, message: data['message'] as String? ?? '', result: null);
-      final parsed = PaginatedTransactionsResponse.fromJson(result as Map<String, dynamic>);
-      return ApiResponse(code: data['code'] as int? ?? 200, message: data['message'] as String? ?? '', result: parsed);
+      try {
+        final parsed = PaginatedTransactionsResponse.fromJson(result as Map<String, dynamic>);
+        return ApiResponse(code: data['code'] as int? ?? 200, message: data['message'] as String? ?? '', result: parsed);
+      } catch (e) {
+        return ApiResponse(code: 502, message: 'Invalid response data: ${e.toString()}', result: null);
+      }
     } on DioException catch (e) {
       return _error(e);
     }
@@ -39,14 +46,21 @@ class TransactionService {
   Future<ApiResponse<TransactionModel>> getTransactionById(String id) async {
     try {
       final res = await _api.dio.get('/transactions/$id');
-      final data = res.data as Map<String, dynamic>;
+      final data = res.data;
+      if (data == null || data is! Map<String, dynamic>) {
+        return ApiResponse(code: 502, message: 'Invalid response format from server', result: null);
+      }
       final result = data['result'];
       if (result == null) return ApiResponse(code: data['code'] as int? ?? 200, message: data['message'] as String? ?? '', result: null);
-      return ApiResponse(
-        code: data['code'] as int? ?? 200,
-        message: data['message'] as String? ?? '',
-        result: TransactionModel.fromJson(result as Map<String, dynamic>),
-      );
+      try {
+        return ApiResponse(
+          code: data['code'] as int? ?? 200,
+          message: data['message'] as String? ?? '',
+          result: TransactionModel.fromJson(result as Map<String, dynamic>),
+        );
+      } catch (e) {
+        return ApiResponse(code: 502, message: 'Invalid response data: ${e.toString()}', result: null);
+      }
     } on DioException catch (e) {
       return _error(e);
     }
@@ -55,14 +69,20 @@ class TransactionService {
   Future<ApiResponse<TransactionModel>> createTransaction(CreateTransactionData body) async {
     try {
       final res = await _api.dio.post('/transactions', data: body.toJson());
-      final data = res.data as Map<String, dynamic>;
+      final data = res.data;
+      if (data == null || data is! Map<String, dynamic>) {
+        return ApiResponse(code: 502, message: 'Invalid response format from server', result: null);
+      }
+      final code = data['code'] as int? ?? 201;
+      final message = data['message'] as String? ?? '';
       final result = data['result'];
-      if (result == null) return ApiResponse(code: data['code'] as int? ?? 201, message: data['message'] as String? ?? '', result: null);
-      return ApiResponse(
-        code: data['code'] as int? ?? 201,
-        message: data['message'] as String? ?? '',
-        result: TransactionModel.fromJson(result as Map<String, dynamic>),
-      );
+      if (result == null) return ApiResponse(code: code, message: message, result: null);
+      try {
+        final parsed = TransactionModel.fromJson(result as Map<String, dynamic>);
+        return ApiResponse(code: code, message: message, result: parsed);
+      } catch (e) {
+        return ApiResponse(code: 502, message: 'Invalid response data: ${e.toString()}', result: null);
+      }
     } on DioException catch (e) {
       return _error(e);
     }
@@ -71,14 +91,21 @@ class TransactionService {
   Future<ApiResponse<TransactionModel>> updateTransaction(String id, UpdateTransactionData body) async {
     try {
       final res = await _api.dio.put('/transactions/$id', data: body.toJson());
-      final data = res.data as Map<String, dynamic>;
+      final data = res.data;
+      if (data == null || data is! Map<String, dynamic>) {
+        return ApiResponse(code: 502, message: 'Invalid response format from server', result: null);
+      }
       final result = data['result'];
       if (result == null) return ApiResponse(code: data['code'] as int? ?? 200, message: data['message'] as String? ?? '', result: null);
-      return ApiResponse(
-        code: data['code'] as int? ?? 200,
-        message: data['message'] as String? ?? '',
-        result: TransactionModel.fromJson(result as Map<String, dynamic>),
-      );
+      try {
+        return ApiResponse(
+          code: data['code'] as int? ?? 200,
+          message: data['message'] as String? ?? '',
+          result: TransactionModel.fromJson(result as Map<String, dynamic>),
+        );
+      } catch (e) {
+        return ApiResponse(code: 502, message: 'Invalid response data: ${e.toString()}', result: null);
+      }
     } on DioException catch (e) {
       return _error(e);
     }
@@ -99,14 +126,20 @@ class TransactionService {
   Future<ApiResponse<TransactionModel>> duplicateTransaction(String id) async {
     try {
       final res = await _api.dio.post('/transactions/$id/duplicate');
-      final data = res.data as Map<String, dynamic>;
+      final data = res.data;
+      if (data == null || data is! Map<String, dynamic>) {
+        return ApiResponse(code: 502, message: 'Invalid response format from server', result: null);
+      }
+      final code = data['code'] as int? ?? 201;
+      final message = data['message'] as String? ?? '';
       final result = data['result'];
-      if (result == null) return ApiResponse(code: data['code'] as int? ?? 201, message: data['message'] as String? ?? '', result: null as TransactionModel);
-      return ApiResponse(
-        code: data['code'] as int? ?? 201,
-        message: data['message'] as String? ?? '',
-        result: TransactionModel.fromJson(result as Map<String, dynamic>),
-      );
+      if (result == null) return ApiResponse(code: code, message: message, result: null);
+      try {
+        final parsed = TransactionModel.fromJson(result as Map<String, dynamic>);
+        return ApiResponse(code: code, message: message, result: parsed);
+      } catch (e) {
+        return ApiResponse(code: 502, message: 'Invalid response data: ${e.toString()}', result: null);
+      }
     } on DioException catch (e) {
       return _error(e);
     }

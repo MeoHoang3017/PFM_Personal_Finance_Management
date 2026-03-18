@@ -162,7 +162,10 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 child: _IncomeExpenseCard(
                   isIncome: true,
                   label: 'Tổng thu',
-                  value: formatCurrency(monthData.totalIncome, suffix: _transactions.isNotEmpty ? _transactions.first.currencySuffix : ' ₫'),
+                  value: formatCurrency(
+                    monthData.totalIncome,
+                    suffix: _transactions.isNotEmpty ? _transactions.first.currencySuffix : null,
+                  ),
                   palette: p,
                   shadow: shadow,
                 ),
@@ -172,7 +175,10 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 child: _IncomeExpenseCard(
                   isIncome: false,
                   label: 'Tổng chi',
-                  value: formatCurrency(monthData.totalExpense, suffix: _transactions.isNotEmpty ? _transactions.first.currencySuffix : ' ₫'),
+                  value: formatCurrency(
+                    monthData.totalExpense,
+                    suffix: _transactions.isNotEmpty ? _transactions.first.currencySuffix : null,
+                  ),
                   palette: p,
                   shadow: shadow,
                 ),

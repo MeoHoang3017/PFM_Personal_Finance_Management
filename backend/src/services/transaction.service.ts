@@ -42,6 +42,7 @@ function formatTransactionResponse(
     return {
         id: transaction._id.toString(),
         amount: displayAmount,
+        currency: (transaction.currency as string) || displayCurrency,
         type: transaction.type,
         category: categoryId,
         ...(categoryName != null ? { categoryName } : {}),
@@ -63,6 +64,11 @@ async function _getDisplayCurrencyAndSymbol(userId: string): Promise<{ displayCu
     const currencyDoc = await getCurrencyByCodeService(displayCurrency);
     const currencySymbol = currencyDoc?.symbol ?? displayCurrency;
     return { displayCurrency, currencySymbol };
+}
+
+async function _getUserCurrency(userId: string): Promise<string> {
+    const user = await User.findById(userId).select('currency').lean();
+    return ((user?.currency as string) || 'USD').toUpperCase();
 }
 
 /** Convert transaction amount to user's display currency and format response. */
@@ -177,8 +183,10 @@ async function _createWithSession(data: CreateTransactionData): Promise<Transact
         if (data.type === 'income') wallet.balance += data.amount;
         else if (data.type === 'expense') wallet.balance -= data.amount;
         await wallet.save({ session });
+        const txCurrency = await _getUserCurrency(data.user);
         const transaction = new Transaction({
             amount: data.amount,
+            currency: txCurrency,
             type: data.type,
             category: new mongoose.Types.ObjectId(data.category),
             date: data.date,
@@ -210,8 +218,10 @@ async function _createNoSession(data: CreateTransactionData): Promise<Transactio
     else if (data.type === 'expense') wallet.balance -= data.amount;
     await wallet.save();
     try {
+        const txCurrency = await _getUserCurrency(data.user);
         const transaction = new Transaction({
             amount: data.amount,
+            currency: txCurrency,
             type: data.type,
             category: new mongoose.Types.ObjectId(data.category),
             date: data.date,
@@ -490,6 +500,7 @@ async function _duplicateWithSession(transactionId: string): Promise<Transaction
         await wallet.save({ session });
         const duplicated = new Transaction({
             amount: original.amount,
+            currency: (original as any).currency || (await _getUserCurrency(original.user.toString())),
             type: original.type,
             category: original.category,
             date: new Date(),
@@ -532,6 +543,7 @@ async function _duplicateNoSession(transactionId: string): Promise<TransactionRe
     try {
         const duplicated = new Transaction({
             amount: original.amount,
+            currency: (original as any).currency || (await _getUserCurrency(original.user.toString())),
             type: original.type,
             category: original.category,
             date: new Date(),

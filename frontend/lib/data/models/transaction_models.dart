@@ -21,6 +21,8 @@ extension TransactionTypeExt on TransactionType {
 class TransactionModel {
   final String id;
   final double amount;
+  /// Currency code captured at creation time (e.g. USD, VND).
+  final String? currency;
   final TransactionType type;
   /// Category id (from API).
   final String category;
@@ -41,6 +43,7 @@ class TransactionModel {
   TransactionModel({
     required this.id,
     required this.amount,
+    this.currency,
     required this.type,
     required this.category,
     this.categoryName,
@@ -61,24 +64,30 @@ class TransactionModel {
   /// Suffix for currency display (space + symbol), e.g. ' ₫' or ' $'.
   String get currencySuffix => ' ${currencySymbol ?? '₫'}';
 
+  static DateTime? _parseDate(dynamic v) {
+    if (v == null) return null;
+    if (v is String) return DateTime.tryParse(v);
+    if (v is int) return DateTime.fromMillisecondsSinceEpoch(v, isUtc: false);
+    return null;
+  }
+
   factory TransactionModel.fromJson(Map<String, dynamic> json) {
     return TransactionModel(
       id: json['id'] as String? ?? '',
       amount: (json['amount'] as num?)?.toDouble() ?? 0,
+      currency: json['currency'] as String?,
       type: TransactionTypeExt.fromString(json['type'] as String?),
       category: json['category'] as String? ?? '',
       categoryName: json['categoryName'] as String?,
-      date: json['date'] != null
-          ? DateTime.tryParse(json['date'] as String) ?? DateTime.now()
-          : DateTime.now(),
+      date: _parseDate(json['date']) ?? DateTime.now(),
       description: json['description'] as String? ?? '',
       notes: json['notes'] as String? ?? '',
       wallet: json['wallet'] as String? ?? '',
       user: json['user'] as String? ?? '',
       displayCurrency: json['displayCurrency'] as String?,
       currencySymbol: json['currencySymbol'] as String?,
-      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'] as String) : null,
-      updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'] as String) : null,
+      createdAt: _parseDate(json['createdAt']),
+      updatedAt: _parseDate(json['updatedAt']),
     );
   }
 }

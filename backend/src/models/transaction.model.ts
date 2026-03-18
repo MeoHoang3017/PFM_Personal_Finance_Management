@@ -6,6 +6,13 @@ const transactionSchema = new mongoose.Schema({
         required: true,
         min: 0,
     },
+    currency: {
+        type: String,
+        required: true,
+        uppercase: true,
+        trim: true,
+        match: [/^[A-Z]{3}$/, 'Invalid currency code format'],
+    },
     type: {
         type: String,
         enum: ['income', 'expense', 'transfer'],
