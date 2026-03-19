@@ -29,6 +29,10 @@ app.get("/", (req: express.Request, res: express.Response) => {
     res.send("Hello World");
 });
 
+app.get("/favicon.ico", (_req: express.Request, res: express.Response) => {
+    res.status(204).end();
+});
+
 // Swagger Documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCss: ".swagger-ui .topbar { display: none }",

@@ -240,12 +240,20 @@ async function loginWithGoogleService(data: GoogleLoginData): Promise<TokenRespo
     const { idToken } = data;
 
     if (!idToken) {
+        console.error('[Google Login Service] Missing idToken in request body');
         throw new Error('Google ID token is required');
     }
 
-    const googleUser = await verifyGoogleToken(idToken);
+    let googleUser;
+    try {
+        googleUser = await verifyGoogleToken(idToken);
+    } catch (err: any) {
+        console.error('[Google Login Service] verifyGoogleToken failed:', err?.message ?? err);
+        throw err;
+    }
 
     if (!googleUser.email) {
+        console.error('[Google Login Service] Google account has no email. sub=', googleUser?.sub);
         throw new Error('Email not found in Google account');
     }
 

@@ -138,11 +138,18 @@ export const helmetConfig = helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"], // Cho phép inline styles cho Swagger UI
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Cho phép Swagger UI scripts
+      styleSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com"], // + Google GIS stylesheet (trang /auth/google/desktop)
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://accounts.google.com"], // + Google Identity Services (trang /auth/google/desktop)
+      scriptSrcElem: ["'self'", "'unsafe-inline'", "https://accounts.google.com"], // inline script trang desktop + script GIS
+      frameSrc: ["https://accounts.google.com"], // iframe Google Sign-In
       imgSrc: ["'self'", "data:", "https:"],
     },
   },
-  crossOriginEmbedderPolicy: false, // Tắt để tương thích với Swagger UI
+  // GIS có thể sử dụng popup/iframe và postMessage.
+  // Một số cấu hình COOP/COEP mặc định của helmet có thể làm transform/popup layer bị null.
+  // Nới các header này để tránh chặn luồng đăng nhập.
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
 });
 

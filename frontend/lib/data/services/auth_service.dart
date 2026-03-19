@@ -8,16 +8,31 @@ import 'package:google_sign_in/google_sign_in.dart';
 import '../../core/api/api_client.dart';
 import '../../core/api/api_response.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/desktop_google_login_stub.dart'
+    if (dart.library.io) '../../core/utils/desktop_google_login_impl.dart' as desktop_google;
 import '../../core/utils/dio_error_message.dart';
 import '../models/auth_models.dart';
 
 class AuthService {
   final ApiClient _api;
   final _storage = const FlutterSecureStorage();
-  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
-  Future<void>? _googleInitialization;
+  Future<void>? _googleSignInInit;
 
   AuthService(this._api);
+
+  /// Official google_sign_in 7.x — Android, iOS, macOS, Web. Desktop (Windows/Linux) không hỗ trợ.
+  GoogleSignIn get googleSignIn => GoogleSignIn.instance;
+
+  Future<void> _ensureGoogleSignInInitialized() async {
+    _googleSignInInit ??= GoogleSignIn.instance.initialize(
+      clientId: AppConstants.googleClientId.isEmpty ? null : AppConstants.googleClientId,
+      serverClientId: AppConstants.googleServerClientId,
+    );
+    await _googleSignInInit;
+  }
+
+  /// Gọi trước khi dùng authenticationEvents hoặc renderButton (ví dụ trên web). Safe to call nhiều lần.
+  Future<void> ensureGoogleSignInInitialized() => _ensureGoogleSignInInitialized();
 
   Future<ApiResponse<TokenResponse>> login(LoginRequest request) async {
     try {
@@ -51,29 +66,108 @@ class AuthService {
     }
   }
 
-  Future<ApiResponse<TokenResponse>> loginWithGoogle() async {
+  /// Trên web bắt buộc dùng nút renderButton (google_sign_in_web) và stream authenticationEvents, rồi gọi [loginWithGoogleWithIdToken].
+  bool get isWebGoogleSignInRequired => kIsWeb;
+
+  /// Gửi idToken từ Google lên backend. Dùng cho web khi authenticationEvents trả về GoogleSignInAuthenticationEventSignIn.
+  Future<ApiResponse<TokenResponse>> loginWithGoogleWithIdToken(String idToken) async {
+    if (idToken.isEmpty) {
+      debugPrint('[Google Login] idToken empty');
+      return ApiResponse(code: 400, message: 'Không lấy được Google ID token.', result: null);
+    }
+    return _sendGoogleIdTokenToBackend(idToken);
+  }
+
+  /// Windows/Linux: mở trình duyệt → trang backend đăng nhập Google → redirect về localhost với id_token → gửi backend.
+  Future<ApiResponse<TokenResponse>> _loginWithGoogleViaBrowser() async {
     try {
-      await _ensureGoogleInitialized();
-      if (!_googleSignIn.supportsAuthenticate()) {
-        return ApiResponse(
-          code: 400,
-          message: 'Thiết bị này chưa hỗ trợ đăng nhập Google.',
-          result: null,
-        );
-      }
-
-      final account = await _googleSignIn.authenticate();
-      final auth = account.authentication;
-      final idToken = auth.idToken;
-
+      final baseUrl = _api.dio.options.baseUrl;
+      final idToken = await desktop_google.runDesktopGoogleLogin(baseUrl);
       if (idToken == null || idToken.isEmpty) {
         return ApiResponse(
           code: 400,
-          message: 'Không lấy được Google ID token.',
+          message: 'Đăng nhập bị hủy hoặc hết thời gian. Vui lòng thử lại.',
           result: null,
         );
       }
+      return _sendGoogleIdTokenToBackend(idToken);
+    } on DioException catch (e) {
+      return _errorResponse(e);
+    } catch (e, stack) {
+      debugPrint('[Google Login] Browser flow error: $e');
+      debugPrint('[Google Login] Stack: $stack');
+      return ApiResponse(
+        code: 500,
+        message: e.toString().isNotEmpty ? e.toString() : 'Đăng nhập Google thất bại.',
+        result: null,
+      );
+    }
+  }
 
+  /// Đăng nhập Google (Android, iOS, macOS). Web: dùng nút renderButton + authenticationEvents.
+  /// Desktop (Windows/Linux): mở trình duyệt tới trang backend, đăng nhập Google, redirect về app với id_token.
+  Future<ApiResponse<TokenResponse>> loginWithGoogle() async {
+    if (kIsWeb) {
+      return ApiResponse(code: 0, message: 'WEB_USE_BUTTON', result: null);
+    }
+    // Trên Windows/Linux, supportsAuthenticate() có thể ném hoặc trả về false → dùng đăng nhập qua website.
+    bool supportsAuth = false;
+    try {
+      supportsAuth = GoogleSignIn.instance.supportsAuthenticate();
+    } catch (e, stack) {
+      debugPrint('[Google Login] Platform không có implementation (Windows/Linux), dùng đăng nhập qua trình duyệt: $e');
+      return _loginWithGoogleViaBrowser();
+    }
+    if (!supportsAuth) {
+      debugPrint('[Google Login] Platform không hỗ trợ authenticate(), dùng đăng nhập qua trình duyệt.');
+      return _loginWithGoogleViaBrowser();
+    }
+    try {
+      await _ensureGoogleSignInInitialized();
+      final account = await GoogleSignIn.instance.authenticate();
+      if (account == null) {
+        return ApiResponse(code: 400, message: 'Bạn đã hủy đăng nhập Google.', result: null);
+      }
+      final auth = account.authentication;
+      final idToken = auth.idToken;
+      if (idToken == null || idToken.isEmpty) {
+        debugPrint('[Google Login] idToken null or empty after authenticate');
+        return ApiResponse(
+          code: 400,
+          message: 'Không lấy được Google ID token. Thử lại hoặc dùng email/mật khẩu.',
+          result: null,
+        );
+      }
+      return _sendGoogleIdTokenToBackend(idToken);
+    } on GoogleSignInException catch (e, stack) {
+      debugPrint('[Google Login] GoogleSignInException: ${e.description} code=${e.code}');
+      debugPrint('[Google Login] Stack: $stack');
+      return ApiResponse(
+        code: 400,
+        message: e.description ?? 'Đăng nhập Google thất bại.',
+        result: null,
+      );
+    } on DioException catch (e) {
+      final statusCode = e.response?.statusCode;
+      final body = e.response?.data;
+      final serverMessage = body is Map && body['message'] != null ? body['message'] : null;
+      debugPrint('[Google Login] API error: status=$statusCode message=${e.message}');
+      debugPrint('[Google Login] Response body: $body');
+      if (serverMessage != null) debugPrint('[Google Login] Server message: $serverMessage');
+      return _errorResponse(e);
+    } catch (e, stack) {
+      debugPrint('[Google Login] Error: $e');
+      debugPrint('[Google Login] Stack: $stack');
+      return ApiResponse(
+        code: 500,
+        message: e.toString().isNotEmpty ? e.toString() : 'Đăng nhập Google thất bại. Vui lòng thử lại.',
+        result: null,
+      );
+    }
+  }
+
+  Future<ApiResponse<TokenResponse>> _sendGoogleIdTokenToBackend(String idToken) async {
+    try {
       final res = await _api.dio.post(
         '/auth/google',
         data: {'idToken': idToken},
@@ -81,18 +175,6 @@ class AuthService {
       return _persistAuthResponse(res.data as Map<String, dynamic>);
     } on DioException catch (e) {
       return _errorResponse(e);
-    } on GoogleSignInException catch (e) {
-      return ApiResponse(
-        code: 400,
-        message: _googleSignInMessage(e),
-        result: null,
-      );
-    } catch (_) {
-      return ApiResponse(
-        code: 500,
-        message: 'Đăng nhập Google thất bại. Vui lòng thử lại.',
-        result: null,
-      );
     }
   }
 
@@ -101,9 +183,10 @@ class AuthService {
       await _api.dio.post('/auth/logout');
     } catch (_) {}
     try {
-      await _ensureGoogleInitialized();
-      await _googleSignIn.signOut();
-    } catch (_) {}
+      await GoogleSignIn.instance.signOut();
+    } catch (e) {
+      debugPrint('[Google Sign-In] signOut: $e');
+    }
     await clearTokensOnly();
   }
 
@@ -231,33 +314,6 @@ class AuthService {
     );
   }
 
-  Future<void> _ensureGoogleInitialized() {
-    final existing = _googleInitialization;
-    if (existing != null) {
-      return existing;
-    }
-
-    final clientId = AppConstants.googleClientId.trim();
-    final serverClientId = AppConstants.googleServerClientId.trim();
-
-    if (!kIsWeb &&
-        defaultTargetPlatform == TargetPlatform.iOS &&
-        clientId.isEmpty) {
-      return Future<void>.error(
-        const GoogleSignInException(
-          code: GoogleSignInExceptionCode.clientConfigurationError,
-          description: 'Thiếu GOOGLE_CLIENT_ID cho iOS.',
-        ),
-      );
-    }
-
-    _googleInitialization = _googleSignIn.initialize(
-      clientId: clientId.isEmpty ? null : clientId,
-      serverClientId: serverClientId.isEmpty ? null : serverClientId,
-    );
-    return _googleInitialization!;
-  }
-
   Future<void> _saveAuthTokens(TokenResponse tokenResponse) async {
     await _storage.write(
       key: AppConstants.storageKeyAccessToken,
@@ -294,24 +350,4 @@ ApiResponse<TokenResponse> _errorResponse(DioException e) {
     fallback: 'Đăng nhập thất bại. Vui lòng thử lại.',
   );
   return ApiResponse(code: code, message: message, result: null);
-}
-
-String _googleSignInMessage(GoogleSignInException e) {
-  return switch (e.code) {
-    GoogleSignInExceptionCode.canceled => 'Bạn đã hủy đăng nhập Google.',
-    GoogleSignInExceptionCode.clientConfigurationError =>
-      'Google Sign-In chưa được cấu hình đúng. Kiểm tra GOOGLE_CLIENT_ID hoặc GOOGLE_SERVER_CLIENT_ID.',
-    GoogleSignInExceptionCode.providerConfigurationError =>
-      'Thiết bị chưa cấu hình Google Sign-In đúng cách.',
-    GoogleSignInExceptionCode.uiUnavailable =>
-      'Không thể mở giao diện đăng nhập Google trên thiết bị này.',
-    GoogleSignInExceptionCode.interrupted =>
-      'Đăng nhập Google bị gián đoạn. Vui lòng thử lại.',
-    GoogleSignInExceptionCode.userMismatch =>
-      'Phiên đăng nhập Google không hợp lệ. Vui lòng thử lại.',
-    GoogleSignInExceptionCode.unknownError =>
-      e.description?.isNotEmpty == true
-          ? e.description!
-          : 'Đăng nhập Google thất bại.',
-  };
 }

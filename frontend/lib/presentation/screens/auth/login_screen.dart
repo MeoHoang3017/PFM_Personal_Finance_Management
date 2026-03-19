@@ -1,6 +1,8 @@
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../../core/di/injection.dart';
 import '../../../core/preferences/app_preferences.dart';
@@ -26,11 +28,15 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   String? _errorMessage;
   bool? _backendConnected;
+  bool _webGoogleCredentialSent = false;
 
   @override
   void initState() {
     super.initState();
     _checkBackend();
+    if (kIsWeb) {
+      getIt<AuthService>().ensureGoogleSignInInitialized();
+    }
   }
 
   Future<void> _checkBackend() async {
@@ -90,6 +96,13 @@ class _LoginScreenState extends State<LoginScreen> {
         getIt<AppPreferences>().updateFromUser(res.result!.user);
         context.go('/home');
       } else {
+        if (res.code == 0 && res.message == 'WEB_USE_BUTTON') {
+          setState(() {
+            _loading = false;
+            _errorMessage = null;
+          });
+          return;
+        }
         setState(() => _errorMessage = res.message);
       }
     } catch (_) {
@@ -100,6 +113,97 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     }
+  }
+
+  Future<void> _onWebGoogleSignInEvent(GoogleSignInAuthenticationEvent event) async {
+    if (event is! GoogleSignInAuthenticationEventSignIn || _loading) return;
+    final account = (event as GoogleSignInAuthenticationEventSignIn).user;
+    final auth = account.authentication;
+    final idToken = auth.idToken;
+    if (idToken == null || idToken.isEmpty) return;
+    if (!_webGoogleCredentialSent) {
+      _webGoogleCredentialSent = true;
+      if (mounted) setState(() {
+        _errorMessage = null;
+        _loading = true;
+      });
+      try {
+        final authService = getIt<AuthService>();
+        final res = await authService.loginWithGoogleWithIdToken(idToken);
+        if (!mounted) return;
+        _webGoogleCredentialSent = false;
+        setState(() => _loading = false);
+        if (res.isSuccess && res.result != null) {
+          getIt<AppPreferences>().updateFromUser(res.result!.user);
+          context.go('/home');
+        } else {
+          setState(() => _errorMessage = res.message);
+        }
+      } catch (_) {
+        if (mounted) {
+          _webGoogleCredentialSent = false;
+          setState(() {
+            _loading = false;
+            _errorMessage = 'error_google_login'.tr();
+          });
+        }
+      }
+    }
+  }
+
+  Widget _buildWebGoogleSignIn(bool isDark) {
+    final auth = getIt<AuthService>();
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      // Tạm thời: hiển thị thông báo, Google Sign-In web sẽ dùng sau.
+      child: _buildWebGoogleSignInButton(),
+    );
+  }
+
+  Widget _buildWebGoogleSignInButton() {
+    // Tránh lỗi compile web với thư viện chuyên biệt; có thể thay bằng GIS renderButton sau.
+    return OutlinedButton.icon(
+      onPressed: null,
+      icon: const Icon(Icons.g_mobiledata, size: 28),
+      label: Text(
+        'Google Sign-In web đang được cấu hình, tạm thời hãy dùng email/mật khẩu.',
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 12),
+      ),
+    );
+  }
+
+  Widget _buildNonWebGoogleButton(bool isDark) {
+    return SizedBox(
+      width: double.infinity,
+      height: 56,
+      child: OutlinedButton.icon(
+        onPressed: _loading ? null : _loginWithGoogle,
+        icon: const Icon(Icons.g_mobiledata, size: 28),
+        label: Text(
+          'continue_google'.tr(),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.5,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: isDark
+              ? PaletteDark.whiteColor
+              : Colors.black87,
+          side: BorderSide(
+            color: isDark
+                ? Colors.grey.shade700
+                : Colors.grey.shade300,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
+    );
   }
 
   InputDecoration _inputDecoration({
@@ -401,35 +505,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: OutlinedButton.icon(
-                      onPressed: _loading ? null : _loginWithGoogle,
-                      icon: const Icon(Icons.g_mobiledata, size: 28),
-                      label: Text(
-                        'continue_google'.tr(),
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: isDark
-                            ? PaletteDark.whiteColor
-                            : Colors.black87,
-                        side: BorderSide(
-                          color: isDark
-                              ? Colors.grey.shade700
-                              : Colors.grey.shade300,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                    ),
-                  ),
+                  if (kIsWeb) _buildWebGoogleSignIn(isDark) else _buildNonWebGoogleButton(isDark),
                   const SizedBox(height: 24),
                   Center(
                     child: TextButton(

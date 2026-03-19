@@ -411,7 +411,138 @@ export const loginWithGoogle = async (req: Request, res: Response, next: NextFun
 
         sendResponse(res, SuccessResponse.LOGIN_SUCCESS(result));
     } catch (error: any) {
+        console.error('[Google Login] Request failed:', error?.message ?? String(error));
+        if (error?.stack) console.error('[Google Login] Stack:', error.stack);
         next(createError(error.message || 'Google login failed', 400));
+    }
+};
+
+/**
+ * GET /api/auth/google/desktop?redirect_uri=http://localhost:8765/callback
+ * Trả về trang HTML dùng Google Identity Services (GIS) để đăng nhập.
+ * Dùng cho app Windows/Linux: mở trình duyệt → đăng nhập Google → redirect về localhost với id_token.
+ * Chỉ chấp nhận redirect_uri là http://localhost:* hoặc http://127.0.0.1:*
+ */
+export const getGoogleDesktopPage = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const redirectUri = (req.query.redirect_uri as string)?.trim();
+        if (!redirectUri) {
+            res.status(400).send('Missing redirect_uri');
+            return;
+        }
+        try {
+            const u = new URL(redirectUri);
+            const allowed = (u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1'));
+            if (!allowed) {
+                res.status(400).send('redirect_uri must be http://localhost or http://127.0.0.1');
+                return;
+            }
+        } catch {
+            res.status(400).send('Invalid redirect_uri');
+            return;
+        }
+
+        const clientId = process.env.GOOGLE_WEB_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
+        if (!clientId) {
+            res.status(500).send('Google Client ID not configured');
+            return;
+        }
+
+        const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Đăng nhập Google</title>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    body { font-family: system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+    h1 { margin-bottom: 24px; }
+    #button { margin: 16px 0; min-height: 50px; width: 240px; }
+    .msg { margin-top: 16px; color: #666; font-size: 14px; max-width: 420px; text-align: center; }
+    .hint { font-size: 12px; color: #888; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Đăng nhập Google</h1>
+  <p class="msg">Dùng tài khoản Google để đăng nhập vào ứng dụng.</p>
+  <p class="msg hint" id="originHint" style="background:#f5f5f5;padding:8px 12px;border-radius:8px;word-break:break-all;"></p>
+  <div id="button"></div>
+  <p class="msg" id="status">Đang tải Google Sign-In...</p>
+  <p class="msg hint" id="hint"></p>
+  <script>
+    (function() {
+      var origin = window.location.origin;
+      var clientIdPrefix = ${JSON.stringify(clientId ? clientId.substring(0, 45) + '...' : '')};
+      var el = document.getElementById('originHint');
+      if (el) el.innerHTML = 'Origin: <strong>' + origin + '</strong><br>Client ID (backend): <strong>' + clientIdPrefix + '</strong><br>Trong Console, OAuth 2.0 Web client phải có Client ID trùng đầu này và Authorized JavaScript origins có đúng origin trên.';
+    })();
+    const redirectUri = ${JSON.stringify(redirectUri)};
+    const clientId = ${JSON.stringify(clientId)};
+    function handleCredentialResponse(response) {
+      document.getElementById('status').textContent = 'Đang chuyển hướng...';
+      const sep = redirectUri.indexOf('?') >= 0 ? '&' : '?';
+      window.location.href = redirectUri + sep + 'id_token=' + encodeURIComponent(response.credential);
+    }
+    function initGoogleSignIn() {
+      if (typeof google === 'undefined' || !google.accounts || !google.accounts.id) {
+        return false;
+      }
+      var btnEl = document.getElementById('button');
+      if (!btnEl) return false;
+      try {
+        google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleCredentialResponse,
+          auto_select: false
+        });
+        requestAnimationFrame(function() {
+          try {
+            if (btnEl && btnEl.parentNode) {
+              google.accounts.id.renderButton(btnEl, {
+                type: 'standard',
+                size: 'large',
+                text: 'signin_with',
+                theme: 'outline'
+              });
+              var st = document.getElementById('status');
+              if (st) st.textContent = '';
+            }
+          } catch (e) {
+            console.warn('renderButton:', e);
+            if (document.getElementById('status')) document.getElementById('status').textContent = 'Không thể tải nút Google. Thử tải lại trang.';
+          }
+        });
+        return true;
+      } catch (e) {
+        console.warn('initGoogleSignIn:', e);
+        return false;
+      }
+    }
+    var attempts = 0;
+    var maxAttempts = 50;
+    function waitForGoogle() {
+      if (initGoogleSignIn()) return;
+      attempts++;
+      if (attempts < maxAttempts) {
+        setTimeout(waitForGoogle, 200);
+      } else {
+        document.getElementById('status').textContent = 'Không tải được Google Sign-In. Kiểm tra kết nối.';
+        document.getElementById('hint').innerHTML = 'Cấu hình Google Cloud Console: Credentials &rarr; OAuth 2.0 Web client &rarr; Authorized JavaScript origins, thêm <strong>http://localhost:5000</strong> (và cổng backend nếu khác).';
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function() { setTimeout(waitForGoogle, 100); });
+    } else {
+      setTimeout(waitForGoogle, 100);
+    }
+  </script>
+</body>
+</html>`;
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(html);
+    } catch (error: any) {
+        next(createError(error.message || 'Failed to serve Google desktop page', 500));
     }
 };
 

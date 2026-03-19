@@ -79,6 +79,25 @@ flutter build apk
 flutter build windows
 ```
 
+## Google Sign-In (all platforms)
+
+Đăng nhập Google được hỗ trợ trên **Android, iOS, Web, Windows, macOS, Linux** nhờ package `google_sign_in_all_platforms`.
+
+**Hướng dẫn chi tiết từng bước** (đã tạo 3 OAuth credential: Web, Android, iOS) — file nào, biến nào, dữ liệu lấy từ đâu:  
+→ **[../docs/GOOGLE_OAUTH_3_CREDENTIALS_SETUP.md](../docs/GOOGLE_OAUTH_3_CREDENTIALS_SETUP.md)**
+
+Tóm tắt nhanh:
+- **Backend** (`backend/.env`): `GOOGLE_WEB_CLIENT_ID` (bắt buộc), tùy chọn `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_ANDROID_CLIENT_ID`.
+- **Frontend** (`app_constants.dart` hoặc dart-define): `GOOGLE_SERVER_CLIENT_ID` = Web Client ID; `GOOGLE_CLIENT_SECRET` = Web Client secret (chỉ cần cho desktop).
+- **iOS**: `ios/Runner/Info.plist` → `CFBundleURLSchemes` = reversed Client ID.
+- **Desktop**: Redirect URI trong Console = `http://localhost:8000`.
+
+Ví dụ chạy Windows với Google Sign-In:
+
+```powershell
+flutter run -d windows --dart-define=GOOGLE_SERVER_CLIENT_ID=xxx.apps.googleusercontent.com --dart-define=GOOGLE_CLIENT_SECRET=yyy
+```
+
 ## Troubleshooting
 
 - **Fix Android licenses**:

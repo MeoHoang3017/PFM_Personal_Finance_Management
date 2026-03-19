@@ -44,6 +44,7 @@ export const verifyGoogleToken = async (idToken: string): Promise<{
         const clientIds = getGoogleClientIds();
         
         if (clientIds.length === 0) {
+            console.error('[Google Token] No client IDs in env. Set GOOGLE_WEB_CLIENT_ID or GOOGLE_CLIENT_ID in .env (same as Flutter GOOGLE_SERVER_CLIENT_ID).');
             throw new Error(
                 'No Google Client IDs configured. Set GOOGLE_WEB_CLIENT_ID or GOOGLE_CLIENT_ID in .env to the Web Client ID from Google Cloud Console (same value as Flutter GOOGLE_SERVER_CLIENT_ID).'
             );
@@ -51,6 +52,7 @@ export const verifyGoogleToken = async (idToken: string): Promise<{
 
         // Try to verify with each client ID (for multi-platform support)
         let lastError: Error | null = null;
+        const errorsByClientId: string[] = [];
         
         for (const clientId of clientIds) {
             try {
@@ -95,16 +97,19 @@ export const verifyGoogleToken = async (idToken: string): Promise<{
                 
                 return result;
             } catch (error: any) {
+                const msg = error?.message ?? String(error);
                 lastError = error;
-                // Continue to next client ID if this one fails
+                errorsByClientId.push(`clientId=${clientId.slice(0, 20)}...: ${msg}`);
                 continue;
             }
         }
         
-        // If all client IDs failed, throw the last error
+        console.error('[Google Token] Verification failed for all client IDs:', errorsByClientId.join('; '));
+        if (lastError?.stack) console.error('[Google Token] Last error stack:', lastError.stack);
         throw lastError || new Error('Failed to verify Google token with any client ID');
     } catch (error: any) {
-        console.error("Google Token Verification Error:", error.message);
+        console.error('[Google Token] Error:', error?.message ?? error);
+        if (error?.stack) console.error('[Google Token] Stack:', error.stack);
         throw new Error(error.message || "Invalid Google Token");
     }
 };

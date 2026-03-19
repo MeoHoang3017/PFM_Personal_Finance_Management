@@ -13,6 +13,9 @@ set GOOGLE_CLIENT_ID=%GOOGLE_SERVER_CLIENT_ID%
 REM Backend API - localhost khi chạy Web/Desktop trên máy
 set API_BASE_URL_LOCAL=http://localhost:5000
 
+REM Cổng cố định khi chạy Flutter Web (Chrome) - tránh cổng ngẫu nhiên. Thêm http://localhost:%WEB_PORT% vào Authorized JavaScript origins (Google OAuth) nếu dùng Google Sign-In web.
+set WEB_PORT=7357
+
 REM Backend API - dùng cho Android Emulator (10.0.2.2 = localhost của máy host)
 set API_BASE_URL_ANDROID_EMU=http://10.0.2.2:5000
 
