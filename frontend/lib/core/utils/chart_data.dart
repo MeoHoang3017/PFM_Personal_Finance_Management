@@ -33,7 +33,18 @@ class ChartDataModel {
   });
 }
 
+/// Hệ số chia trục Y theo đơn vị tiền: VND theo triệu (1e6), USD và các loại khác giữ nguyên (1).
+double _chartScaleDivisor(String? currencyCode) {
+  switch ((currencyCode ?? 'VND').toUpperCase()) {
+    case 'VND':
+      return 1000000;
+    default:
+      return 1;
+  }
+}
+
 /// Tạo ChartDataModel từ danh sách giao dịch PFM, theo [days] ngày gần nhất (30 hoặc 90).
+/// Trục Y được chia theo đơn vị hiển thị: VND theo triệu, USD/khác giữ nguyên.
 ChartDataModel buildChartDataFromTransactions(
   List<TransactionModel> transactions, {
   int days = 30,
@@ -64,6 +75,9 @@ ChartDataModel buildChartDataFromTransactions(
     );
   }
 
+  final currencyCode = transactions.first.displayCurrency ?? transactions.first.currency;
+  final divisor = _chartScaleDivisor(currencyCode);
+
   final Map<int, double> dailyExpense = {};
   final Map<int, double> dailyIncome = {};
   for (final t in transactions) {
@@ -85,17 +99,17 @@ ChartDataModel buildChartDataFromTransactions(
   for (int i = 0; i <= days; i++) {
     totalExpense += dailyExpense[i] ?? 0;
     totalIncome += dailyIncome[i] ?? 0;
-    expenseSpots.add(ChartSpot(i.toDouble(), totalExpense / 1000000));
-    incomeSpots.add(ChartSpot(i.toDouble(), totalIncome / 1000000));
+    expenseSpots.add(ChartSpot(i.toDouble(), totalExpense / divisor));
+    incomeSpots.add(ChartSpot(i.toDouble(), totalIncome / divisor));
   }
 
   final expenseAverageSpots = [
     ChartSpot(0, 0),
-    ChartSpot(days.toDouble(), totalExpense / 1000000),
+    ChartSpot(days.toDouble(), totalExpense / divisor),
   ];
   final incomeAverageSpots = [
     ChartSpot(0, 0),
-    ChartSpot(days.toDouble(), totalIncome / 1000000),
+    ChartSpot(days.toDouble(), totalIncome / divisor),
   ];
 
   final bottomLabels = <double, String>{

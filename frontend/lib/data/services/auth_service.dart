@@ -37,6 +37,20 @@ class AuthService {
     }
   }
 
+  /// Gửi mã OTP đăng ký (POST /otp/send-register-otp). Gọi trước khi gọi register với cùng email.
+  Future<ApiResponse<void>> requestRegisterOtp(String email) async {
+    try {
+      await _api.dio.post(
+        '/otp/send-register-otp',
+        data: {'email': email.trim()},
+      );
+      return ApiResponse(code: 200, message: 'OK', result: null);
+    } on DioException catch (e) {
+      final code = e.response?.statusCode ?? 500;
+      return ApiResponse(code: code, message: dioErrorMessage(e), result: null);
+    }
+  }
+
   Future<ApiResponse<TokenResponse>> loginWithGoogle() async {
     try {
       await _ensureGoogleInitialized();

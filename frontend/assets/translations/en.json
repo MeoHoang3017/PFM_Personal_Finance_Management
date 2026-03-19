@@ -30,6 +30,7 @@
   "server_not_connected": "Server not connected. Check backend (port 5000).",
   "error_connection": "Connection error",
   "error_google_login": "Google sign-in failed",
+  "otp_sent_hint": "Verification code sent to your email. Please enter the 6-digit code.",
 
   "nav_overview": "Overview",
   "nav_transactions": "Transactions",

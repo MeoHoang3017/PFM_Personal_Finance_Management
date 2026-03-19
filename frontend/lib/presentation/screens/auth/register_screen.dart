@@ -21,20 +21,53 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _otpController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
   bool _loading = false;
+  bool _sendingOtp = false;
   String? _errorMessage;
+  String? _otpSentMessage;
 
   @override
   void dispose() {
     _usernameController.dispose();
     _emailController.dispose();
+    _otpController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _sendOtp() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      setState(() => _errorMessage = 'hint_email'.tr());
+      return;
+    }
+    setState(() {
+      _errorMessage = null;
+      _otpSentMessage = null;
+      _sendingOtp = true;
+    });
+    try {
+      final auth = getIt<AuthService>();
+      final res = await auth.requestRegisterOtp(email);
+      if (!mounted) return;
+      setState(() => _sendingOtp = false);
+      if (res.isSuccess) {
+        setState(() => _otpSentMessage = 'otp_sent_hint'.tr());
+      } else {
+        setState(() => _errorMessage = res.message);
+      }
+    } catch (_) {
+      if (mounted) setState(() {
+        _sendingOtp = false;
+        _errorMessage = 'error_connection'.tr();
+      });
+    }
   }
 
   Future<void> _register() async {
@@ -44,10 +77,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
     try {
       final auth = getIt<AuthService>();
+      final otp = _otpController.text.trim();
       final res = await auth.register(RegisterRequest(
         username: _usernameController.text.trim(),
         email: _emailController.text.trim(),
         password: _passwordController.text,
+        otp: otp.isEmpty ? null : otp,
       ));
       if (!mounted) return;
       setState(() => _loading = false);
@@ -184,6 +219,65 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     validator: (v) => v == null || v.isEmpty ? 'hint_email'.tr() : null,
                   ),
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _otpController,
+                          keyboardType: TextInputType.number,
+                          decoration: _inputDecoration(
+                            labelText: 'Mã OTP',
+                            hintText: 'Nhập mã 6 số',
+                            prefixIcon: Icons.pin_outlined,
+                            isDark: isDark,
+                          ),
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return 'Vui lòng nhập mã OTP';
+                            if (v.length != 6) return 'Mã OTP phải có 6 số';
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        height: 56,
+                        child: OutlinedButton(
+                          onPressed: _sendingOtp
+                              ? null
+                              : () {
+                                  if (_emailController.text.trim().isNotEmpty) _sendOtp();
+                                },
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: isDark ? PaletteDark.borderColor : PaletteLight.borderColor,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: _sendingOtp
+                              ? SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Text('Gửi mã', style: TextStyle(fontSize: 14)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_otpSentMessage != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _otpSentMessage!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isDark ? PaletteDark.incomeColor : Colors.green.shade700,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   TextFormField(
                     controller: _passwordController,

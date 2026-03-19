@@ -30,6 +30,7 @@
   "server_not_connected": "Chưa kết nối máy chủ. Kiểm tra backend (port 5000).",
   "error_connection": "Lỗi kết nối",
   "error_google_login": "Đăng nhập Google thất bại",
+  "otp_sent_hint": "Mã xác thực đã gửi đến email của bạn. Vui lòng nhập mã 6 số.",
 
   "nav_overview": "Tổng quan",
   "nav_transactions": "Giao dịch",
