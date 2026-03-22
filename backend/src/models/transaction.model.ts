@@ -11,17 +11,19 @@ const transactionSchema = new mongoose.Schema({
         required: true,
         uppercase: true,
         trim: true,
-        match: [/^[A-Z]{3}$/, 'Invalid currency code format'],
+        match: [/^[A-Z]{3}$/, "Invalid currency code format"],
     },
     type: {
         type: String,
-        enum: ['income', 'expense', 'transfer'],
+        enum: ["income", "expense", "transfer", "exchange"],
         required: true,
     },
     category: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Category",
-        required: true,
+        required: function (this: { type?: string }) {
+            return this.type !== "exchange";
+        },
     },
     date: {
         type: Date,
@@ -31,12 +33,12 @@ const transactionSchema = new mongoose.Schema({
     description: {
         type: String,
         trim: true,
-        default: '',
+        default: "",
     },
     notes: {
         type: String,
         trim: true,
-        default: '',
+        default: "",
     },
     wallet: {
         type: mongoose.Schema.Types.ObjectId,
@@ -47,7 +49,22 @@ const transactionSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         required: true,
-    }
+    },
+    /** Ví đối ứng (chuyển tiền / exchange). */
+    counterpartyWallet: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Wallet",
+    },
+    /** Liên kết hai bản ghi exchange cùng một lần chuyển. */
+    exchangePairId: {
+        type: String,
+        trim: true,
+    },
+    /** Chiều chuyển: trừ số dư ví này (out) hoặc cộng (in). */
+    exchangeLeg: {
+        type: String,
+        enum: ["out", "in"],
+    },
 }, {
     timestamps: true,
     versionKey: false,

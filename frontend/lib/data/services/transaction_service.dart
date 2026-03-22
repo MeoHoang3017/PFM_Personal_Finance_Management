@@ -66,6 +66,28 @@ class TransactionService {
     }
   }
 
+  Future<ApiResponse<WalletExchangeResult>> createWalletExchange(CreateWalletExchangeData body) async {
+    try {
+      final res = await _api.dio.post('/transactions/exchange', data: body.toJson());
+      final data = res.data;
+      if (data == null || data is! Map<String, dynamic>) {
+        return ApiResponse(code: 502, message: 'Invalid response format from server', result: null);
+      }
+      final code = data['code'] as int? ?? 201;
+      final message = data['message'] as String? ?? '';
+      final result = data['result'];
+      if (result == null) return ApiResponse(code: code, message: message, result: null);
+      try {
+        final parsed = WalletExchangeResult.fromJson(result as Map<String, dynamic>);
+        return ApiResponse(code: code, message: message, result: parsed);
+      } catch (e) {
+        return ApiResponse(code: 502, message: 'Invalid exchange response: ${e.toString()}', result: null);
+      }
+    } on DioException catch (e) {
+      return _error(e);
+    }
+  }
+
   Future<ApiResponse<TransactionModel>> createTransaction(CreateTransactionData body) async {
     try {
       final res = await _api.dio.post('/transactions', data: body.toJson());

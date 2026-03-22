@@ -22,13 +22,16 @@ class BudgetFormScreen extends StatefulWidget {
 }
 
 class _BudgetFormScreenState extends State<BudgetFormScreen> {
+  static const List<String> _kCurrencies = ['VND', 'USD', 'EUR', 'GBP', 'JPY', 'KRW', 'CNY', 'THB'];
+
   final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
+  String _currency = 'VND';
   List<CategoryModel> _categories = [];
   CategoryModel? _selectedCategory;
   BudgetPeriod _period = BudgetPeriod.monthly;
-  DateTime _startDate = DateTime.now();
-  DateTime _endDate = DateTime.now();
+  DateTime _customStart = DateTime.now();
+  DateTime _customEnd = DateTime.now();
   bool _isActive = true;
   bool _loading = false;
   bool _loadingData = true;
@@ -40,14 +43,17 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     super.initState();
     if (widget.budget != null) {
       _amountController.text = widget.budget!.amount.toStringAsFixed(0);
+      _currency = widget.budget!.currency;
       _period = widget.budget!.period;
-      _startDate = widget.budget!.startDate;
-      _endDate = widget.budget!.endDate;
       _isActive = widget.budget!.isActive;
+      if (_period == BudgetPeriod.custom) {
+        _customStart = widget.budget!.startDate;
+        _customEnd = widget.budget!.endDate;
+      }
     } else {
       final now = DateTime.now();
-      _startDate = DateTime(now.year, now.month, 1);
-      _endDate = DateTime(now.year, now.month + 1, 0);
+      _customStart = DateTime(now.year, now.month, 1);
+      _customEnd = DateTime(now.year, now.month + 1, 0);
     }
     _loadData();
   }
@@ -72,6 +78,12 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     if (!mounted) return;
     setState(() {
       _user = user;
+      if (widget.budget == null && user != null) {
+        final u = user.currency.toUpperCase();
+        if (_kCurrencies.contains(u)) {
+          _currency = u;
+        }
+      }
       _categories = cats;
       _selectedCategory = sel;
       _loadingData = false;
@@ -86,7 +98,11 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
 
   Future<void> _save() async {
     if (_user == null || _selectedCategory == null) {
-      setState(() => _errorMessage = 'select_category_login'.tr());
+      setState(() => _errorMessage = context.tr('select_category_login'));
+      return;
+    }
+    if (_period == BudgetPeriod.custom && (_customStart.isAfter(_customEnd) || _customStart.isAtSameMomentAs(_customEnd))) {
+      setState(() => _errorMessage = context.tr('budget_custom_dates_invalid'));
       return;
     }
     final amount = double.tryParse(_amountController.text.replaceAll(',', '')) ?? 0;
@@ -103,16 +119,17 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
             amount: amount,
             category: _selectedCategory!.id,
             period: _period,
-            startDate: _startDate,
-            endDate: _endDate,
+            currency: _currency,
+            startDate: _period == BudgetPeriod.custom ? _customStart : null,
+            endDate: _period == BudgetPeriod.custom ? _customEnd : null,
             isActive: _isActive,
           ),
         );
         if (!mounted) return;
         setState(() => _loading = false);
         if (res.isSuccess) {
+          AppToast.showSuccess(context, context.tr('budget_updated'));
           Navigator.pop(context, true);
-          AppToast.showSuccess(context, 'budget_updated'.tr());
         } else {
           setState(() => _errorMessage = res.message);
         }
@@ -121,25 +138,28 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
           amount: amount,
           category: _selectedCategory!.id,
           period: _period,
-          startDate: _startDate,
-          endDate: _endDate,
+          currency: _currency,
+          startDate: _period == BudgetPeriod.custom ? _customStart : null,
+          endDate: _period == BudgetPeriod.custom ? _customEnd : null,
           user: _user!.id,
           isActive: _isActive,
         ));
         if (!mounted) return;
         setState(() => _loading = false);
         if (res.isSuccess) {
+          AppToast.showSuccess(context, context.tr('budget_added'));
           Navigator.pop(context, true);
-          AppToast.showSuccess(context, 'budget_added'.tr());
         } else {
           setState(() => _errorMessage = res.message);
         }
       }
     } catch (_) {
-      if (mounted) setState(() {
-        _loading = false;
-        _errorMessage = 'error_connection'.tr();
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _errorMessage = context.tr('error_connection');
+        });
+      }
     }
   }
 
@@ -150,14 +170,14 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
     if (_loadingData) {
       return Scaffold(
         backgroundColor: p.backgroundColor,
-        appBar: AppBar(title: Text(isEdit ? 'edit_budget'.tr() : 'add_budget'.tr())),
+        appBar: AppBar(title: Text(isEdit ? context.tr('edit_budget') : context.tr('add_budget'))),
         body: Center(child: CircularProgressIndicator(color: p.primaryAction)),
       );
     }
     return Scaffold(
       backgroundColor: p.backgroundColor,
       appBar: AppBar(
-        title: Text(isEdit ? 'edit_budget'.tr() : 'add_budget'.tr()),
+        title: Text(isEdit ? context.tr('edit_budget') : context.tr('add_budget')),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -189,65 +209,98 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   controller: _amountController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
-                    labelText: 'amount'.tr(),
+                    labelText: context.tr('amount'),
                     hintText: '0',
-                    suffixText: '₫',
+                    suffixText: currencySymbolFromCode(_currency),
                     filled: true,
                     fillColor: p.cardSurface,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: p.borderColor)),
                     enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: p.borderColor)),
                   ),
                   validator: (v) {
-                    if (v == null || v.isEmpty) return 'hint_amount'.tr();
-                    if (double.tryParse(v.replaceAll(',', '')) == null) return 'invalid_number'.tr();
+                    if (v == null || v.isEmpty) return context.tr('hint_amount');
+                    if (double.tryParse(v.replaceAll(',', '')) == null) return context.tr('invalid_number');
                     return null;
+                  },
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  context.tr('budget_amount_in_budget_currency'),
+                  style: TextStyle(color: p.subtitleText, fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: _currency,
+                  decoration: InputDecoration(
+                    labelText: context.tr('budget_currency_label'),
+                    filled: true,
+                    fillColor: p.cardSurface,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: p.borderColor)),
+                  ),
+                  items: _kCurrencies
+                      .map((c) => DropdownMenuItem<String>(
+                            value: c,
+                            child: Text('$c (${currencySymbolFromCode(c)})'),
+                          ))
+                      .toList(),
+                  onChanged: (v) {
+                    if (v != null) setState(() => _currency = v);
                   },
                 ),
                 const SizedBox(height: 20),
                 DropdownButtonFormField<CategoryModel>(
                   value: _selectedCategory,
                   decoration: InputDecoration(
-                    labelText: 'category'.tr(),
+                    labelText: context.tr('category'),
                     filled: true,
                     fillColor: p.cardSurface,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: p.borderColor)),
                   ),
                   items: _categories.map((c) => DropdownMenuItem(value: c, child: Text(c.name))).toList(),
                   onChanged: (c) => setState(() => _selectedCategory = c),
-                  validator: (v) => v == null ? 'select_category'.tr() : null,
+                  validator: (v) => v == null ? context.tr('select_category') : null,
                 ),
                 const SizedBox(height: 20),
                 SegmentedButton<BudgetPeriod>(
                   segments: [
-                    ButtonSegment(value: BudgetPeriod.daily, label: Text('period_day'.tr())),
-                    ButtonSegment(value: BudgetPeriod.weekly, label: Text('period_week'.tr())),
-                    ButtonSegment(value: BudgetPeriod.monthly, label: Text('period_month'.tr())),
-                    ButtonSegment(value: BudgetPeriod.yearly, label: Text('period_year'.tr())),
+                    ButtonSegment(value: BudgetPeriod.weekly, label: Text(context.tr('period_week'))),
+                    ButtonSegment(value: BudgetPeriod.monthly, label: Text(context.tr('period_month'))),
+                    ButtonSegment(value: BudgetPeriod.yearly, label: Text(context.tr('period_year'))),
+                    ButtonSegment(value: BudgetPeriod.custom, label: Text(context.tr('period_custom'))),
                   ],
                   selected: {_period},
                   onSelectionChanged: (s) => setState(() => _period = s.first),
                 ),
-                const SizedBox(height: 20),
-                _dateTile(p, 'from_date'.tr(), _startDate, (d) => setState(() => _startDate = d), first: DateTime(2000), last: DateTime(2100)),
-                const SizedBox(height: 8),
-                _dateTile(p, 'to_date'.tr(), _endDate, (d) => setState(() => _endDate = d), first: _startDate, last: DateTime(2100)),
+                const SizedBox(height: 12),
+                Text(
+                  context.tr('budget_period_hint'),
+                  style: TextStyle(color: p.subtitleText, fontSize: 12),
+                ),
+                if (_period == BudgetPeriod.custom) ...[
+                  const SizedBox(height: 16),
+                  _dateTile(p, context.tr('from_date'), _customStart, (d) => setState(() => _customStart = d), first: DateTime(2000), last: DateTime(2100)),
+                  const SizedBox(height: 8),
+                  _dateTile(p, context.tr('to_date'), _customEnd, (d) => setState(() => _customEnd = d), first: _customStart, last: DateTime(2100)),
+                ],
                 const SizedBox(height: 8),
                 SwitchListTile(
-                  title: Text('is_active'.tr()),
+                  title: Text(context.tr('is_active')),
                   value: _isActive,
                   onChanged: (v) => setState(() => _isActive = v),
                   contentPadding: EdgeInsets.zero,
                 ),
                 const SizedBox(height: 28),
                 FilledButton(
-                  onPressed: _loading ? null : () { if (_formKey.currentState?.validate() ?? false) _save(); },
+                  onPressed: _loading ? null : () {
+                    if (_formKey.currentState?.validate() ?? false) _save();
+                  },
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: _loading
                       ? SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2, color: p.primaryAction))
-                      : Text(isEdit ? 'update'.tr() : 'add_budget_btn'.tr()),
+                      : Text(isEdit ? context.tr('update') : context.tr('add_budget_btn')),
                 ),
               ],
             ),

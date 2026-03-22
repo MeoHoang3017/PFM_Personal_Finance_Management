@@ -12,11 +12,13 @@ Transaction:
       example: "USD"
     type:
       type: string
-      enum: [income, expense, transfer]
+      enum: [income, expense, transfer, exchange]
       example: expense
     category:
       type: string
       example: "507f1f77bcf86cd799439011"
+    categoryName:
+      type: string
     date:
       type: string
       format: date-time
@@ -29,9 +31,20 @@ Transaction:
     wallet:
       type: string
       example: "507f1f77bcf86cd799439011"
+    counterpartyWallet:
+      type: string
+    exchangePairId:
+      type: string
+    exchangeLeg:
+      type: string
+      enum: [out, in]
     user:
       type: string
       example: "507f1f77bcf86cd799439011"
+    displayCurrency:
+      type: string
+    currencySymbol:
+      type: string
     createdAt:
       type: string
       format: date-time
@@ -41,13 +54,12 @@ Transaction:
 
 CreateTransactionRequest:
   type: object
-  required: [amount, type, category, date, wallet]
+  required: [amount, type, category, wallet]
   properties:
     amount:
       type: number
       minimum: 0
       example: 100.50
-    # currency is auto-assigned by backend (user's current currency)
     type:
       type: string
       enum: [income, expense, transfer]
@@ -69,6 +81,35 @@ CreateTransactionRequest:
       type: string
       example: "507f1f77bcf86cd799439011"
 
+CreateWalletExchangeRequest:
+  type: object
+  required: [fromWallet, toWallet, amount]
+  properties:
+    fromWallet:
+      type: string
+    toWallet:
+      type: string
+    amount:
+      type: number
+      minimum: 0
+    date:
+      type: string
+      format: date-time
+    description:
+      type: string
+    notes:
+      type: string
+
+WalletExchangeResult:
+  type: object
+  properties:
+    exchangePairId:
+      type: string
+    outbound:
+      $ref: '#/components/schemas/Transaction'
+    inbound:
+      $ref: '#/components/schemas/Transaction'
+
 UpdateTransactionRequest:
   type: object
   properties:
@@ -77,7 +118,7 @@ UpdateTransactionRequest:
       minimum: 0
     type:
       type: string
-      enum: [income, expense, transfer]
+      enum: [income, expense, transfer, exchange]
     category:
       type: string
     date:
@@ -89,4 +130,3 @@ UpdateTransactionRequest:
       type: string
     wallet:
       type: string
-

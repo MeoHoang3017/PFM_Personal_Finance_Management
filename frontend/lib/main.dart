@@ -18,6 +18,7 @@ void main() async {
       supportedLocales: const [Locale('vi'), Locale('en')],
       path: 'assets/translations',
       fallbackLocale: const Locale('vi'),
+      useFallbackTranslations: true,
       startLocale: startLocale,
       saveLocale: false,
       child: const PfmApp(),
@@ -37,10 +38,25 @@ class _PfmAppState extends State<PfmApp> {
   void initState() {
     super.initState();
     getIt<AppPreferences>().addListener(_onPreferencesChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncLocaleFromPrefs());
+  }
+
+  /// Đồng bộ [EasyLocalization] với ngôn ngữ user (ví dụ sau đăng nhập) — tránh lệch locale so với [AppPreferences].
+  Future<void> _syncLocaleFromPrefs() async {
+    final prefs = getIt<AppPreferences>();
+    final loc = prefs.locale;
+    if (!mounted || loc == null) return;
+    if (context.locale.languageCode != loc.languageCode) {
+      await context.setLocale(loc);
+    }
   }
 
   void _onPreferencesChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    () async {
+      await _syncLocaleFromPrefs();
+      if (mounted) setState(() {});
+    }();
   }
 
   @override

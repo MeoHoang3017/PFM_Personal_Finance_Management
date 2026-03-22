@@ -2,62 +2,40 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/theme_palette.dart';
-import '../../../core/utils/app_toast.dart';
 import '../transactions/transaction_form_screen.dart';
 import '../wallets/wallet_form_screen.dart';
 import '../budgets/budget_form_screen.dart';
-import '../goals/goal_form_screen.dart';
 
-/// Màn "Thêm" kiểu FinTracker: nút bấm Thêm giao dịch, Thêm ví, Thêm ngân sách, Thêm mục tiêu.
+/// Màn "Thêm" kiểu FinTracker: Thêm giao dịch, ví, ngân sách.
 class AddMenuScreen extends StatelessWidget {
   const AddMenuScreen({super.key});
 
+  /// Form giao dịch / ví / ngân sách tự hiển thị toast khi lưu thành công — tránh trùng với màn Thêm.
   Future<void> _openTransaction(BuildContext context) async {
-    final ok = await Navigator.push<bool>(
+    await Navigator.push<dynamic>(
       context,
       MaterialPageRoute(
         builder: (context) => const TransactionFormScreen(),
       ),
     );
-    if (ok == true && context.mounted) {
-      AppToast.showSuccess(context, 'transaction_added'.tr());
-    }
   }
 
   Future<void> _openWallet(BuildContext context) async {
-    final ok = await Navigator.push<bool>(
+    await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => const WalletFormScreen(),
       ),
     );
-    if (ok == true && context.mounted) {
-      AppToast.showSuccess(context, 'wallet_added'.tr());
-    }
   }
 
   Future<void> _openBudget(BuildContext context) async {
-    final ok = await Navigator.push<bool>(
+    await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => const BudgetFormScreen(),
       ),
     );
-    if (ok == true && context.mounted) {
-      AppToast.showSuccess(context, 'budget_added'.tr());
-    }
-  }
-
-  Future<void> _openGoal(BuildContext context) async {
-    final ok = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const GoalFormScreen(),
-      ),
-    );
-    if (ok == true && context.mounted) {
-      AppToast.showSuccess(context, 'goal_added'.tr());
-    }
   }
 
   @override
@@ -111,14 +89,6 @@ class AddMenuScreen extends StatelessWidget {
                 subtitle: 'add_budget_subtitle'.tr(),
                 color: p.expenseColor,
                 onTap: () => _openBudget(context),
-              ),
-              const SizedBox(height: 12),
-              _OptionTile(
-                icon: Icons.flag_outlined,
-                title: 'add_goal'.tr(),
-                subtitle: 'add_goal_subtitle'.tr(),
-                color: p.incomeColor,
-                onTap: () => _openGoal(context),
               ),
             ],
           ),

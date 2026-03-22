@@ -65,6 +65,8 @@ paths:
   # Transaction Routes
   /api/transactions:
     $ref: './paths/transaction.yaml#/paths/~1api~1transactions'
+  /api/transactions/exchange:
+    $ref: './paths/transaction.yaml#/paths/~1api~1transactions~1exchange'
   /api/transactions/{id}:
     $ref: './paths/transaction.yaml#/paths/~1api~1transactions~1{id}'
   /api/transactions/{id}/duplicate:
@@ -77,12 +79,6 @@ paths:
     $ref: './paths/category.yaml#/paths/~1api~1categories~1user~1list'
   /api/categories/{id}:
     $ref: './paths/category.yaml#/paths/~1api~1categories~1{id}'
-
-  # Goal Routes
-  /api/goals:
-    $ref: './paths/goal.yaml#/paths/~1api~1goals'
-  /api/goals/{id}:
-    $ref: './paths/goal.yaml#/paths/~1api~1goals~1{id}'
 
   # Budget Routes
   /api/budgets:
@@ -183,6 +179,10 @@ components:
       $ref: './components/schemas/transaction.yaml#/Transaction'
     CreateTransactionRequest:
       $ref: './components/schemas/transaction.yaml#/CreateTransactionRequest'
+    CreateWalletExchangeRequest:
+      $ref: './components/schemas/transaction.yaml#/CreateWalletExchangeRequest'
+    WalletExchangeResult:
+      $ref: './components/schemas/transaction.yaml#/WalletExchangeResult'
     UpdateTransactionRequest:
       $ref: './components/schemas/transaction.yaml#/UpdateTransactionRequest'
 
@@ -193,14 +193,6 @@ components:
       $ref: './components/schemas/category.yaml#/CreateCategoryRequest'
     UpdateCategoryRequest:
       $ref: './components/schemas/category.yaml#/UpdateCategoryRequest'
-
-    # Goal Schemas
-    Goal:
-      $ref: './components/schemas/goal.yaml#/Goal'
-    CreateGoalRequest:
-      $ref: './components/schemas/goal.yaml#/CreateGoalRequest'
-    UpdateGoalRequest:
-      $ref: './components/schemas/goal.yaml#/UpdateGoalRequest'
 
     # Budget Schemas
     Budget:

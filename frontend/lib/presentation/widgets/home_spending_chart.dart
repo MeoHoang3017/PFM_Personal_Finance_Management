@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
@@ -65,7 +66,7 @@ class _HomeSpendingChartState extends State<HomeSpendingChart> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    'Chi',
+                    context.tr('chart_tab_expense'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: _selectedTab == 0 ? p.expenseColor : p.subtitleText,
@@ -88,7 +89,7 @@ class _HomeSpendingChartState extends State<HomeSpendingChart> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    'Thu',
+                    context.tr('chart_tab_income'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: _selectedTab == 1 ? p.incomeColor : p.subtitleText,
@@ -209,7 +210,7 @@ class _HomeSpendingChartState extends State<HomeSpendingChart> {
             children: [
               Expanded(
                 child: _PeriodChip(
-                  label: '1 tháng',
+                  label: context.tr('chart_range_1m'),
                   selected: _periodDays == 30,
                   onTap: () => setState(() => _periodDays = 30),
                   p: p,
@@ -218,7 +219,7 @@ class _HomeSpendingChartState extends State<HomeSpendingChart> {
               const SizedBox(width: 10),
               Expanded(
                 child: _PeriodChip(
-                  label: '3 tháng',
+                  label: context.tr('chart_range_3m'),
                   selected: _periodDays == 90,
                   onTap: () => setState(() => _periodDays = 90),
                   p: p,

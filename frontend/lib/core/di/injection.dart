@@ -6,7 +6,6 @@ import '../../data/services/api_health_service.dart';
 import '../../data/services/auth_service.dart';
 import '../../data/services/budget_service.dart';
 import '../../data/services/category_service.dart';
-import '../../data/services/goal_service.dart';
 import '../../data/services/transaction_service.dart';
 import '../../data/services/user_service.dart';
 import '../../data/services/wallet_service.dart';
@@ -22,6 +21,5 @@ Future<void> setupInjection({String? apiBaseUrl}) async {
   getIt.registerLazySingleton<TransactionService>(() => TransactionService(getIt<ApiClient>()));
   getIt.registerLazySingleton<CategoryService>(() => CategoryService(getIt<ApiClient>()));
   getIt.registerLazySingleton<BudgetService>(() => BudgetService(getIt<ApiClient>()));
-  getIt.registerLazySingleton<GoalService>(() => GoalService(getIt<ApiClient>()));
   getIt.registerLazySingleton<AppPreferences>(() => AppPreferences(getIt<AuthService>()));
 }

@@ -12,7 +12,6 @@ import '../../../data/services/user_service.dart';
 import '../../widgets/section_card.dart';
 import '../categories/categories_screen.dart';
 import '../wallets/wallets_screen.dart';
-import '../goals/goals_screen.dart';
 import 'change_password_screen.dart';
 import 'edit_profile_screen.dart';
 import 'settings_screen.dart';
@@ -180,10 +179,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Divider(height: 1, color: p.borderColor),
                       _profileTile(context, p, Icons.account_balance_wallet_outlined, 'manage_wallets'.tr(), () {
                         Navigator.push(context, MaterialPageRoute(builder: (context) => const WalletsScreen()));
-                      }),
-                      Divider(height: 1, color: p.borderColor),
-                      _profileTile(context, p, Icons.flag_outlined, 'goals'.tr(), () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const GoalsScreen()));
                       }),
                       Divider(height: 1, color: p.borderColor),
                       _profileTile(context, p, Icons.delete_outline, 'delete_account'.tr(), _confirmDeleteAccount, isDestructive: true),

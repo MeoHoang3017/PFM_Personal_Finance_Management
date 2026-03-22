@@ -152,14 +152,22 @@ class _TransactionsScreenState extends State<TransactionsScreen>
   }
 
   Future<void> _openForm([TransactionModel? transaction]) async {
-    final result = await Navigator.push<TransactionModel?>(
+    if (transaction?.type == TransactionType.exchange) {
+      AppToast.showError(context, 'exchange_cannot_edit'.tr());
+      return;
+    }
+    final result = await Navigator.push<dynamic>(
       context,
       MaterialPageRoute(
         builder: (context) => TransactionFormScreen(transaction: transaction),
       ),
     );
-    if (result != null) {
+    if (!mounted) return;
+    if (result is TransactionModel) {
       _mergeTransactionFromBackend(result);
+      widget.onTransactionSaved?.call();
+    } else if (result == true) {
+      await _load();
       widget.onTransactionSaved?.call();
     }
   }
@@ -221,7 +229,11 @@ class _TransactionsScreenState extends State<TransactionsScreen>
     final res = await getIt<TransactionService>().deleteTransaction(t.id);
     if (mounted) {
       if (res.isSuccess) {
-        setState(() => _transactions = _transactions.where((x) => x.id != t.id).toList());
+        if (t.type == TransactionType.exchange && t.exchangePairId != null) {
+          await _load();
+        } else {
+          setState(() => _transactions = _transactions.where((x) => x.id != t.id).toList());
+        }
         widget.onTransactionSaved?.call();
         AppToast.showSuccess(context, 'transaction_deleted'.tr());
       } else {
@@ -236,8 +248,8 @@ class _TransactionsScreenState extends State<TransactionsScreen>
         return 'type_income'.tr();
       case TransactionType.expense:
         return 'type_expense'.tr();
-      case TransactionType.transfer:
-        return 'type_transfer'.tr();
+      case TransactionType.exchange:
+        return 'type_exchange'.tr();
     }
   }
 
@@ -496,7 +508,11 @@ class _TransactionsScreenState extends State<TransactionsScreen>
         itemCount: list.length,
         itemBuilder: (context, index) {
           final t = list[index];
-          final typeColor = t.type == TransactionType.income ? p.incomeColor : p.expenseColor;
+          final typeColor = t.type == TransactionType.income
+              ? p.incomeColor
+              : t.type == TransactionType.exchange
+                  ? p.primaryAction
+                  : p.expenseColor;
           return Padding(
             padding: const EdgeInsets.only(bottom: 10),
             child: SectionCard(
@@ -515,7 +531,11 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
-                          t.type == TransactionType.income ? Icons.arrow_downward : Icons.arrow_upward,
+                          t.type == TransactionType.income
+                              ? Icons.arrow_downward
+                              : t.type == TransactionType.exchange
+                                  ? Icons.swap_horiz
+                                  : Icons.arrow_upward,
                           size: 22,
                           color: typeColor,
                         ),
@@ -556,7 +576,8 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                         },
                         itemBuilder: (ctx) => [
                           PopupMenuItem(value: 'edit', child: Text('edit'.tr())),
-                          PopupMenuItem(value: 'duplicate', child: Text('duplicate'.tr())),
+                          if (t.type != TransactionType.exchange)
+                            PopupMenuItem(value: 'duplicate', child: Text('duplicate'.tr())),
                           PopupMenuItem(value: 'delete', child: Text('delete'.tr())),
                         ],
                       ),

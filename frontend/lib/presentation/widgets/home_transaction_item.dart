@@ -1,6 +1,8 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/theme_palette.dart';
+import '../../core/utils/category_icon.dart';
 import '../../core/utils/currency_format.dart';
 import '../../data/models/transaction_models.dart';
 
@@ -11,17 +13,26 @@ class HomeTransactionItem extends StatelessWidget {
 
   const HomeTransactionItem({super.key, required this.transaction, this.onTap});
 
+  String _defaultTitle() {
+    final t = transaction;
+    if (t.type == TransactionType.income) return 'type_income_label'.tr();
+    if (t.type == TransactionType.exchange) return 'type_exchange'.tr();
+    return 'type_expense_label'.tr();
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = pfmPaletteOf(context);
     final isIncome = transaction.type == TransactionType.income;
-    final color = isIncome ? p.incomeColor : p.expenseColor;
-    final title = transaction.description.isEmpty ? (isIncome ? 'Thu nhập' : 'Chi tiêu') : transaction.description;
+    final isExchange = transaction.type == TransactionType.exchange;
+    final color = isIncome ? p.incomeColor : isExchange ? p.primaryAction : p.expenseColor;
+    final title = transaction.description.isEmpty ? _defaultTitle() : transaction.description;
     final dateStr = '${transaction.date.day}/${transaction.date.month}/${transaction.date.year}';
     final amountStr = formatCurrency(transaction.amount, suffix: transaction.currencySuffix);
+    final catIcon = iconForTransaction(transaction);
 
     final content = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
           Container(
@@ -32,7 +43,7 @@ class HomeTransactionItem extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              isIncome ? Icons.arrow_downward : Icons.arrow_upward,
+              catIcon,
               size: 22,
               color: color,
             ),
@@ -53,6 +64,15 @@ class HomeTransactionItem extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                if (transaction.type == TransactionType.expense && transaction.categoryDisplay.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    transaction.categoryDisplay,
+                    style: TextStyle(color: p.subtitleText, fontSize: 11, fontWeight: FontWeight.w500),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
                 const SizedBox(height: 2),
                 Text(
                   dateStr,

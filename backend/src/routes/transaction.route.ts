@@ -3,9 +3,10 @@ import {
     getUserTransactions,
     getTransactionById,
     createTransaction,
+    createWalletExchange,
     updateTransaction,
     deleteTransaction,
-    duplicateTransaction
+    duplicateTransaction,
 } from "../controllers/transaction.controller";
 import { authenticateJWT } from "../middleware/auth.middleware";
 
@@ -15,8 +16,9 @@ const router = Router();
 router.use(authenticateJWT);
 
 router.get('/', getUserTransactions);
-router.get('/:id', getTransactionById);
+router.post('/exchange', createWalletExchange);
 router.post('/', createTransaction);
+router.get('/:id', getTransactionById);
 router.put('/:id', updateTransaction);
 router.delete('/:id', deleteTransaction);
 router.post('/:id/duplicate', duplicateTransaction);

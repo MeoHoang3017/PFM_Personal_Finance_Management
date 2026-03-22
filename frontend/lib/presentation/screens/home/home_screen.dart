@@ -42,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
       DashboardScreen(
         key: _dashboardKey,
         onViewAllTransactions: () => setState(() => _currentIndex = 1),
+        onViewAllBudgets: () => setState(() => _currentIndex = 3),
       ),
       TransactionsScreen(onTransactionSaved: _onTransactionSaved),
       const AddMenuScreen(),

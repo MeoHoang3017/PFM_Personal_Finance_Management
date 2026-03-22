@@ -348,7 +348,8 @@ class _TransactionDetailSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = pfmPaletteOf(context);
     final isIncome = transaction.type == TransactionType.income;
-    final color = isIncome ? p.incomeColor : p.expenseColor;
+    final isExchange = transaction.type == TransactionType.exchange;
+    final color = isIncome ? p.incomeColor : isExchange ? p.primaryAction : p.expenseColor;
     final dateStr =
         '${transaction.date.day}/${transaction.date.month}/${transaction.date.year}';
 
@@ -377,7 +378,7 @@ class _TransactionDetailSheet extends StatelessWidget {
                   radius: 28,
                   backgroundColor: color.withValues(alpha: 0.2),
                   child: Icon(
-                    isIncome ? Icons.arrow_downward : Icons.arrow_upward,
+                    isIncome ? Icons.arrow_downward : isExchange ? Icons.swap_horiz : Icons.arrow_upward,
                     color: color,
                     size: 28,
                   ),
@@ -389,7 +390,7 @@ class _TransactionDetailSheet extends StatelessWidget {
                     children: [
                       Text(
                         transaction.description.isEmpty
-                            ? (isIncome ? 'Thu nhập' : 'Chi tiêu')
+                            ? (isIncome ? 'Thu nhập' : isExchange ? 'Chuyển ví' : 'Chi tiêu')
                             : transaction.description,
                         style: TextStyle(
                           color: p.primaryText,
@@ -414,7 +415,7 @@ class _TransactionDetailSheet extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${isIncome ? '+' : '-'}${formatCurrency(transaction.amount, suffix: transaction.currencySuffix)}',
+                  '${isExchange ? '' : isIncome ? '+' : '-'}${formatCurrency(transaction.amount, suffix: transaction.currencySuffix)}',
                   style: TextStyle(
                     color: color,
                     fontWeight: FontWeight.bold,

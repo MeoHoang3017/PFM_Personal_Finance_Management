@@ -3,9 +3,10 @@ import {
     getUserTransactionsService,
     getTransactionByIdService,
     createTransactionService,
+    createWalletExchangeService,
     updateTransactionService,
     deleteTransactionService,
-    duplicateTransactionService
+    duplicateTransactionService,
 } from "../services/transaction.service";
 import { SuccessResponse, ErrorResponse } from "../constants/Response";
 import { sendResponse } from "../utils/response";
@@ -67,8 +68,16 @@ export const createTransaction = async (req: Request, res: Response, next: NextF
 
         const { amount, type, category, date, description, notes, wallet } = req.body;
 
-        if (amount === undefined || amount === null || !type || !category || !wallet) {
-            sendResponse(res, ErrorResponse.MISSING_FIELDS(['amount', 'type', 'category', 'wallet']));
+        if (amount === undefined || amount === null || !type || !wallet) {
+            sendResponse(res, ErrorResponse.MISSING_FIELDS(['amount', 'type', 'wallet']));
+            return;
+        }
+        if (type === "exchange") {
+            next(createError("Use POST /api/transactions/exchange for wallet transfers", 400));
+            return;
+        }
+        if (!category) {
+            sendResponse(res, ErrorResponse.MISSING_FIELDS(["category"]));
             return;
         }
 
@@ -86,6 +95,40 @@ export const createTransaction = async (req: Request, res: Response, next: NextF
         sendResponse(res, SuccessResponse.CREATED('Transaction', result));
     } catch (error: any) {
         next(createError(error.message || 'Failed to create transaction', 400));
+    }
+};
+
+/**
+ * Chuyển tiền giữa hai ví: tạo hai giao dịch type exchange (out / in) liên kết exchangePairId.
+ */
+export const createWalletExchange = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            sendResponse(res, ErrorResponse.UNAUTHORIZED);
+            return;
+        }
+
+        const { fromWallet, toWallet, amount, date, description, notes } = req.body;
+
+        if (amount === undefined || amount === null || !fromWallet || !toWallet) {
+            sendResponse(res, ErrorResponse.MISSING_FIELDS(["amount", "fromWallet", "toWallet"]));
+            return;
+        }
+
+        const result = await createWalletExchangeService({
+            fromWallet,
+            toWallet,
+            amount: Number(amount),
+            date: date ? new Date(date) : new Date(),
+            description,
+            notes,
+            user: userId,
+        });
+
+        sendResponse(res, SuccessResponse.CREATED("ExchangeTransactions", result));
+    } catch (error: any) {
+        next(createError(error.message || "Failed to create wallet exchange", 400));
     }
 };
 

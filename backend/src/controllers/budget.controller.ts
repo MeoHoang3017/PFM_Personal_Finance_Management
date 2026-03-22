@@ -4,11 +4,13 @@ import {
     getBudgetByIdService,
     createBudgetService,
     updateBudgetService,
-    deleteBudgetService
+    deleteBudgetService,
 } from "../services/budget.service";
 import { SuccessResponse, ErrorResponse } from "../constants/Response";
 import { sendResponse } from "../utils/response";
 import { createError } from "../middleware/error.middleware";
+
+const ALLOWED_PERIODS = ["weekly", "monthly", "yearly", "custom"] as const;
 
 /**
  * Get User Budgets
@@ -28,12 +30,12 @@ export const getUserBudgets = async (req: Request, res: Response, next: NextFunc
         const filter: any = { user: userId };
         if (category) filter.category = category;
         if (period) filter.period = period;
-        if (isActive !== undefined) filter.isActive = isActive === 'true';
+        if (isActive !== undefined) filter.isActive = isActive === "true";
 
         const result = await getUserBudgetsService(filter, page, pageSize);
-        sendResponse(res, SuccessResponse.LIST('Budgets', result));
+        sendResponse(res, SuccessResponse.LIST("Budgets", result));
     } catch (error: any) {
-        next(createError(error.message || 'Failed to fetch budgets', 500));
+        next(createError(error.message || "Failed to fetch budgets", 500));
     }
 };
 
@@ -44,9 +46,9 @@ export const getBudgetById = async (req: Request, res: Response, next: NextFunct
     try {
         const { id } = req.params;
         const result = await getBudgetByIdService(id as string);
-        sendResponse(res, SuccessResponse.ITEM('Budget', result));
+        sendResponse(res, SuccessResponse.ITEM("Budget", result));
     } catch (error: any) {
-        next(createError(error.message || 'Budget not found', 404));
+        next(createError(error.message || "Budget not found", 404));
     }
 };
 
@@ -61,26 +63,39 @@ export const createBudget = async (req: Request, res: Response, next: NextFuncti
             return;
         }
 
-        const { amount, category, period, startDate, endDate, isActive } = req.body;
+        const { amount, category, period, startDate, endDate, isActive, currency } = req.body;
 
-        if (!amount || !category || !period || !startDate || !endDate) {
-            sendResponse(res, ErrorResponse.MISSING_FIELDS(['amount', 'category', 'period', 'startDate', 'endDate']));
+        if (amount === undefined || amount === null || !category || !period) {
+            sendResponse(res, ErrorResponse.MISSING_FIELDS(["amount", "category", "period"]));
             return;
+        }
+
+        if (!ALLOWED_PERIODS.includes(period)) {
+            sendResponse(res, ErrorResponse.BAD_REQUEST_MSG("period must be weekly, monthly, yearly, or custom"));
+            return;
+        }
+
+        if (period === "custom") {
+            if (!startDate || !endDate) {
+                sendResponse(res, ErrorResponse.MISSING_FIELDS(["startDate", "endDate"]));
+                return;
+            }
         }
 
         const result = await createBudgetService({
             amount,
             category,
             period,
-            startDate: new Date(startDate),
-            endDate: new Date(endDate),
+            currency,
+            startDate: startDate ? new Date(startDate) : undefined,
+            endDate: endDate ? new Date(endDate) : undefined,
             user: userId,
-            isActive
+            isActive,
         });
 
-        sendResponse(res, SuccessResponse.CREATED('Budget', result));
+        sendResponse(res, SuccessResponse.CREATED("Budget", result));
     } catch (error: any) {
-        next(createError(error.message || 'Failed to create budget', 400));
+        next(createError(error.message || "Failed to create budget", 400));
     }
 };
 
@@ -90,24 +105,31 @@ export const createBudget = async (req: Request, res: Response, next: NextFuncti
 export const updateBudget = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         const { id } = req.params;
-        const { amount, category, period, startDate, endDate, isActive } = req.body;
+        const { amount, category, period, startDate, endDate, isActive, currency } = req.body;
 
         const updateData: any = {};
         if (amount !== undefined) updateData.amount = amount;
         if (category !== undefined) updateData.category = category;
-        if (period !== undefined) updateData.period = period;
+        if (currency !== undefined) updateData.currency = currency;
+        if (period !== undefined) {
+            if (!ALLOWED_PERIODS.includes(period)) {
+                sendResponse(res, ErrorResponse.BAD_REQUEST_MSG("period must be weekly, monthly, yearly, or custom"));
+                return;
+            }
+            updateData.period = period;
+        }
         if (startDate !== undefined) updateData.startDate = new Date(startDate);
         if (endDate !== undefined) updateData.endDate = new Date(endDate);
         if (isActive !== undefined) updateData.isActive = isActive;
 
         if (!id) {
-            sendResponse(res, ErrorResponse.BAD_REQUEST_MSG('Budget ID is required'));
+            sendResponse(res, ErrorResponse.BAD_REQUEST_MSG("Budget ID is required"));
             return;
         }
         const result = await updateBudgetService(id as string, updateData);
-        sendResponse(res, SuccessResponse.UPDATED('Budget', result));
+        sendResponse(res, SuccessResponse.UPDATED("Budget", result));
     } catch (error: any) {
-        next(createError(error.message || 'Failed to update budget', 400));
+        next(createError(error.message || "Failed to update budget", 400));
     }
 };
 
@@ -118,13 +140,12 @@ export const deleteBudget = async (req: Request, res: Response, next: NextFuncti
     try {
         const { id } = req.params;
         if (!id) {
-            sendResponse(res, ErrorResponse.BAD_REQUEST_MSG('Budget ID is required'));
+            sendResponse(res, ErrorResponse.BAD_REQUEST_MSG("Budget ID is required"));
             return;
         }
         await deleteBudgetService(id as string);
-        sendResponse(res, SuccessResponse.DELETED('Budget'));
+        sendResponse(res, SuccessResponse.DELETED("Budget"));
     } catch (error: any) {
-        next(createError(error.message || 'Failed to delete budget', 500));
+        next(createError(error.message || "Failed to delete budget", 500));
     }
 };
-

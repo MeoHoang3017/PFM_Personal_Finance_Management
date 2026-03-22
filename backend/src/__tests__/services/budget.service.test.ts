@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import {
   getUserBudgetsService,
   getBudgetByIdService,
@@ -30,39 +29,70 @@ describe('Budget Service', () => {
     categoryId = category._id.toString();
   });
 
-  const validDateRange = () => {
-    const start = new Date();
-    start.setDate(1);
-    start.setHours(0, 0, 0, 0);
-    const end = new Date(start);
-    end.setMonth(end.getMonth() + 1);
-    end.setDate(0);
-    end.setHours(23, 59, 59, 999);
-    return { start, end };
-  };
-
   describe('createBudgetService', () => {
-    it('should create budget', async () => {
-      const { start, end } = validDateRange();
+    it('should create monthly budget without stored date range', async () => {
       const result = await createBudgetService({
         amount: 1000,
         category: categoryId,
         period: 'monthly',
-        startDate: start,
-        endDate: end,
         user: userId,
       });
       expect(result.amount).toBe(1000);
       expect(result.period).toBe('monthly');
+      expect(result.currency).toBe('USD');
+      expect(result.startDate).toBeDefined();
+      expect(result.endDate).toBeDefined();
     });
 
-    it('should throw when startDate >= endDate', async () => {
+    it('should create custom budget with dates', async () => {
+      const start = new Date('2024-01-01T00:00:00.000Z');
+      const end = new Date('2024-01-31T23:59:59.999Z');
+      const result = await createBudgetService({
+        amount: 500,
+        category: categoryId,
+        period: 'custom',
+        startDate: start,
+        endDate: end,
+        user: userId,
+      });
+      expect(result.period).toBe('custom');
+    });
+
+    it('should reject duplicate category for same user', async () => {
+      await createBudgetService({
+        amount: 1000,
+        category: categoryId,
+        period: 'monthly',
+        user: userId,
+      });
+      await expect(
+        createBudgetService({
+          amount: 2000,
+          category: categoryId,
+          period: 'weekly',
+          user: userId,
+        })
+      ).rejects.toThrow('A budget already exists for this category');
+    });
+
+    it('should throw when custom period missing dates', async () => {
+      await expect(
+        createBudgetService({
+          amount: 1000,
+          category: categoryId,
+          period: 'custom',
+          user: userId,
+        })
+      ).rejects.toThrow('startDate and endDate are required');
+    });
+
+    it('should throw when startDate >= endDate for custom', async () => {
       const d = new Date();
       await expect(
         createBudgetService({
           amount: 1000,
           category: categoryId,
-          period: 'monthly',
+          period: 'custom',
           startDate: d,
           endDate: d,
           user: userId,
@@ -73,13 +103,10 @@ describe('Budget Service', () => {
 
   describe('getUserBudgetsService', () => {
     it('should return paginated budgets with filter', async () => {
-      const { start, end } = validDateRange();
       await createBudgetService({
         amount: 500,
         category: categoryId,
         period: 'monthly',
-        startDate: start,
-        endDate: end,
         user: userId,
       });
 
@@ -90,13 +117,10 @@ describe('Budget Service', () => {
 
   describe('getBudgetByIdService', () => {
     it('should return budget by id', async () => {
-      const { start, end } = validDateRange();
       const created = await createBudgetService({
         amount: 800,
         category: categoryId,
         period: 'weekly',
-        startDate: start,
-        endDate: end,
         user: userId,
       });
       const result = await getBudgetByIdService(created.id);
@@ -106,13 +130,10 @@ describe('Budget Service', () => {
 
   describe('updateBudgetService', () => {
     it('should update budget', async () => {
-      const { start, end } = validDateRange();
       const created = await createBudgetService({
         amount: 500,
         category: categoryId,
         period: 'monthly',
-        startDate: start,
-        endDate: end,
         user: userId,
       });
       const result = await updateBudgetService(created.id, { amount: 1200 });
@@ -122,13 +143,10 @@ describe('Budget Service', () => {
 
   describe('deleteBudgetService', () => {
     it('should delete budget', async () => {
-      const { start, end } = validDateRange();
       const created = await createBudgetService({
         amount: 500,
         category: categoryId,
         period: 'monthly',
-        startDate: start,
-        endDate: end,
         user: userId,
       });
       const result = await deleteBudgetService(created.id);

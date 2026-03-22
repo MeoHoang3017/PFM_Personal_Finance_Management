@@ -24,23 +24,13 @@ describe('Budgets API', () => {
   });
 
   describe('POST /api/budgets', () => {
-    it('should create budget', async () => {
-      const start = new Date();
-      start.setDate(1);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(start);
-      end.setMonth(end.getMonth() + 1);
-      end.setDate(0);
-      end.setHours(23, 59, 59, 999);
-
+    it('should create monthly budget without custom dates', async () => {
       const res = await authRequest(app, token)
         .post('/api/budgets')
         .send({
           amount: 1000,
           category: categoryId,
           period: 'monthly',
-          startDate: start.toISOString(),
-          endDate: end.toISOString(),
         })
         .expect(201);
       expect(res.body.result.amount).toBe(1000);

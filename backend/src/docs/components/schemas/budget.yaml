@@ -7,16 +7,27 @@ Budget:
     amount:
       type: number
       example: 1000
+    currency:
+      type: string
+      description: ISO 4217 — hạn mức và spentAmount cùng đơn vị
+      example: VND
     category:
       type: string
       example: "507f1f77bcf86cd799439011"
+    categoryName:
+      type: string
+    categoryIcon:
+      type: string
+    categoryColor:
+      type: string
     period:
       type: string
-      enum: [daily, weekly, monthly, yearly]
+      enum: [weekly, monthly, yearly, custom]
       example: monthly
     startDate:
       type: string
       format: date-time
+      description: Cửa sổ hiện tại (preset) hoặc khoảng custom
     endDate:
       type: string
       format: date-time
@@ -26,6 +37,10 @@ Budget:
     isActive:
       type: boolean
       example: true
+    spentAmount:
+      type: number
+    isOverBudget:
+      type: boolean
     createdAt:
       type: string
       format: date-time
@@ -35,7 +50,7 @@ Budget:
 
 CreateBudgetRequest:
   type: object
-  required: [amount, category, period, startDate, endDate]
+  required: [amount, category, period]
   properties:
     amount:
       type: number
@@ -46,20 +61,23 @@ CreateBudgetRequest:
       example: "507f1f77bcf86cd799439011"
     period:
       type: string
-      enum: [daily, weekly, monthly, yearly]
+      enum: [weekly, monthly, yearly, custom]
       example: monthly
     startDate:
       type: string
       format: date-time
-      example: "2024-01-01T00:00:00Z"
+      description: Bắt buộc khi period = custom
     endDate:
       type: string
       format: date-time
-      example: "2024-01-31T23:59:59Z"
     isActive:
       type: boolean
       default: true
       example: true
+    currency:
+      type: string
+      description: ISO 4217; mặc định theo user
+      example: VND
 
 UpdateBudgetRequest:
   type: object
@@ -71,7 +89,7 @@ UpdateBudgetRequest:
       type: string
     period:
       type: string
-      enum: [daily, weekly, monthly, yearly]
+      enum: [weekly, monthly, yearly, custom]
     startDate:
       type: string
       format: date-time
@@ -80,4 +98,6 @@ UpdateBudgetRequest:
       format: date-time
     isActive:
       type: boolean
-
+    currency:
+      type: string
+      example: USD

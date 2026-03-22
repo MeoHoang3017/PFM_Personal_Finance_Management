@@ -1,6 +1,6 @@
 import 'pagination.dart';
 
-enum TransactionType { income, expense, transfer }
+enum TransactionType { income, expense, exchange }
 
 extension TransactionTypeExt on TransactionType {
   String get value => name;
@@ -10,8 +10,10 @@ extension TransactionTypeExt on TransactionType {
         return TransactionType.income;
       case 'expense':
         return TransactionType.expense;
+      case 'exchange':
+        return TransactionType.exchange;
       case 'transfer':
-        return TransactionType.transfer;
+        return TransactionType.exchange;
       default:
         return TransactionType.expense;
     }
@@ -24,7 +26,7 @@ class TransactionModel {
   /// Currency code captured at creation time (e.g. USD, VND).
   final String? currency;
   final TransactionType type;
-  /// Category id (from API).
+  /// Category id (from API); rỗng với exchange.
   final String category;
   /// Category name for display (populated from API when available).
   final String? categoryName;
@@ -33,6 +35,9 @@ class TransactionModel {
   final String notes;
   final String wallet;
   final String user;
+  final String? counterpartyWallet;
+  final String? exchangePairId;
+  final String? exchangeLeg;
   /// Display currency code (e.g. USD, VND) - amount is already in this currency.
   final String? displayCurrency;
   /// Currency symbol for display (e.g. $, ₫).
@@ -52,14 +57,20 @@ class TransactionModel {
     this.notes = '',
     required this.wallet,
     required this.user,
+    this.counterpartyWallet,
+    this.exchangePairId,
+    this.exchangeLeg,
     this.displayCurrency,
     this.currencySymbol,
     this.createdAt,
     this.updatedAt,
   });
 
-  /// Display label: categoryName if present, otherwise category (id).
-  String get categoryDisplay => (categoryName != null && categoryName!.isNotEmpty) ? categoryName! : (category.isEmpty ? '' : category);
+  /// Display label: categoryName if present; exchange không có category.
+  String get categoryDisplay {
+    if (type == TransactionType.exchange) return '';
+    return (categoryName != null && categoryName!.isNotEmpty) ? categoryName! : (category.isEmpty ? '' : category);
+  }
 
   /// Suffix for currency display (space + symbol), e.g. ' ₫' or ' $'.
   String get currencySuffix => ' ${currencySymbol ?? '₫'}';
@@ -84,6 +95,9 @@ class TransactionModel {
       notes: json['notes'] as String? ?? '',
       wallet: json['wallet'] as String? ?? '',
       user: json['user'] as String? ?? '',
+      counterpartyWallet: json['counterpartyWallet'] as String?,
+      exchangePairId: json['exchangePairId'] as String?,
+      exchangeLeg: json['exchangeLeg'] as String?,
       displayCurrency: json['displayCurrency'] as String?,
       currencySymbol: json['currencySymbol'] as String?,
       createdAt: _parseDate(json['createdAt']),
@@ -125,6 +139,33 @@ class CreateTransactionData {
       };
 }
 
+class CreateWalletExchangeData {
+  final String fromWallet;
+  final String toWallet;
+  final double amount;
+  final DateTime date;
+  final String? description;
+  final String? notes;
+
+  CreateWalletExchangeData({
+    required this.fromWallet,
+    required this.toWallet,
+    required this.amount,
+    required this.date,
+    this.description,
+    this.notes,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'fromWallet': fromWallet,
+        'toWallet': toWallet,
+        'amount': amount,
+        'date': date.toIso8601String(),
+        if (description != null && description!.isNotEmpty) 'description': description,
+        if (notes != null && notes!.isNotEmpty) 'notes': notes,
+      };
+}
+
 class UpdateTransactionData {
   final double? amount;
   final TransactionType? type;
@@ -157,6 +198,26 @@ class UpdateTransactionData {
   }
 }
 
+class WalletExchangeResult {
+  final String exchangePairId;
+  final TransactionModel outbound;
+  final TransactionModel inbound;
+
+  WalletExchangeResult({
+    required this.exchangePairId,
+    required this.outbound,
+    required this.inbound,
+  });
+
+  factory WalletExchangeResult.fromJson(Map<String, dynamic> json) {
+    return WalletExchangeResult(
+      exchangePairId: json['exchangePairId'] as String? ?? '',
+      outbound: TransactionModel.fromJson(json['outbound'] as Map<String, dynamic>),
+      inbound: TransactionModel.fromJson(json['inbound'] as Map<String, dynamic>),
+    );
+  }
+}
+
 class PaginatedTransactionsResponse {
   final List<TransactionModel> data;
   final Pagination pagination;
@@ -166,9 +227,7 @@ class PaginatedTransactionsResponse {
   factory PaginatedTransactionsResponse.fromJson(Map<String, dynamic> json) {
     final list = json['data'] as List<dynamic>? ?? [];
     return PaginatedTransactionsResponse(
-      data: list
-          .map((e) => TransactionModel.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      data: list.map((e) => TransactionModel.fromJson(e as Map<String, dynamic>)).toList(),
       pagination: Pagination.fromJson(json['pagination'] as Map<String, dynamic>? ?? {}),
     );
   }

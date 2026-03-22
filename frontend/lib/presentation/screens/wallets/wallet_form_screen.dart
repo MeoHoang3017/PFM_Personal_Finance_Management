@@ -66,8 +66,8 @@ class _WalletFormScreenState extends State<WalletFormScreen> {
         if (!mounted) return;
         setState(() => _loading = false);
         if (res.isSuccess) {
-          Navigator.pop(context, true);
           AppToast.showSuccess(context, 'Đã cập nhật ví');
+          Navigator.pop(context, true);
         } else {
           setState(() => _errorMessage = res.message);
         }
@@ -76,8 +76,8 @@ class _WalletFormScreenState extends State<WalletFormScreen> {
         if (!mounted) return;
         setState(() => _loading = false);
         if (res.isSuccess) {
-          Navigator.pop(context, true);
           AppToast.showSuccess(context, 'wallet_added'.tr());
+          Navigator.pop(context, true);
         } else {
           setState(() => _errorMessage = res.message);
         }

@@ -21,7 +21,7 @@ paths:
           name: type
           schema:
             type: string
-            enum: [income, expense, transfer]
+            enum: [income, expense, transfer, exchange]
         - in: query
           name: category
           schema:
@@ -93,6 +93,38 @@ paths:
                     properties:
                       result:
                         $ref: '#/components/schemas/Transaction'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/transactions/exchange:
+    post:
+      summary: Chuyển tiền giữa hai ví (hai giao dịch type exchange)
+      tags: [Transactions]
+      security:
+        - bearerAuth: []
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWalletExchangeRequest'
+      responses:
+        '201':
+          description: Hai giao dịch exchange đã tạo
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/BaseResponse'
+                  - type: object
+                    properties:
+                      result:
+                        $ref: '#/components/schemas/WalletExchangeResult'
         '400':
           description: Bad request
           content:

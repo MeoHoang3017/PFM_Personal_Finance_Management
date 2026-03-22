@@ -4,16 +4,20 @@ import 'package:flutter/material.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/theme/theme_palette.dart';
 import '../../../core/utils/currency_format.dart';
+import '../../../data/models/budget_models.dart';
 import '../../../data/models/transaction_models.dart';
 import '../../../data/models/wallet_models.dart';
+import '../../../data/services/budget_service.dart';
 import '../../../data/services/transaction_service.dart';
 import '../../../data/services/wallet_service.dart';
+import '../../widgets/home_budget_at_risk.dart';
 import '../../widgets/section_card.dart';
 import '../../widgets/section_header.dart';
 import '../../widgets/home_wallet_item.dart';
 import '../../widgets/home_transaction_item.dart';
 import '../../widgets/home_top_spending.dart';
 import '../../widgets/home_spending_chart.dart';
+import '../budgets/budget_detail_screen.dart';
 import '../wallets/wallets_screen.dart';
 import '../transactions/transaction_form_screen.dart';
 import '../report/report_detail_screen.dart';
@@ -21,8 +25,9 @@ import '../report/top_spending_detail_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final VoidCallback? onViewAllTransactions;
+  final VoidCallback? onViewAllBudgets;
 
-  const DashboardScreen({super.key, this.onViewAllTransactions});
+  const DashboardScreen({super.key, this.onViewAllTransactions, this.onViewAllBudgets});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -31,6 +36,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   List<Wallet> _wallets = [];
   List<TransactionModel> _transactions = [];
+  List<BudgetModel> _budgetsNearLimit = [];
   double _totalBalance = 0;
   bool _loading = true;
   String? _error;
@@ -51,8 +57,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _error = null;
     });
     try {
-      final walletRes = await getIt<WalletService>().getWallets(pageSize: 100);
-      final txRes = await getIt<TransactionService>().getTransactions(page: 1, pageSize: 200);
+      final walletFuture = getIt<WalletService>().getWallets(pageSize: 100);
+      final txFuture = getIt<TransactionService>().getTransactions(page: 1, pageSize: 200);
+      final budgetFuture = getIt<BudgetService>().getBudgets(page: 1, pageSize: 100, isActive: true);
+
+      final walletRes = await walletFuture;
+      final txRes = await txFuture;
+      final budgetRes = await budgetFuture;
 
       double total = 0;
       if (walletRes.isSuccess && walletRes.result != null) {
@@ -63,6 +74,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
       if (txRes.isSuccess && txRes.result != null) {
         _transactions = txRes.result!.data; // Dữ liệu từ backend cho chart, top spending, giao dịch gần đây
+      }
+      if (budgetRes.isSuccess && budgetRes.result != null) {
+        _budgetsNearLimit = _topBudgetsNearLimit(budgetRes.result!.data);
+      } else {
+        _budgetsNearLimit = [];
       }
       if (!mounted) return;
       setState(() {
@@ -81,6 +97,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   String get _currencySuffix => _wallets.isNotEmpty ? _wallets.first.currencySuffix : ' ₫';
   String _formatBalance(double value) => formatCurrency(value, suffix: _currencySuffix, compact: true);
+
+  /// Ba ngân sách đang hoạt động có tỷ lệ đã chi / hạn mức cao nhất.
+  static List<BudgetModel> _topBudgetsNearLimit(List<BudgetModel> all) {
+    final candidates = all.where((b) => b.isActive && b.amount > 0).toList();
+    candidates.sort((a, b) {
+      final ra = (a.spentAmount ?? 0) / a.amount;
+      final rb = (b.spentAmount ?? 0) / b.amount;
+      return rb.compareTo(ra);
+    });
+    return candidates.take(3).toList();
+  }
 
   List<TransactionModel> get _recentTransactions {
     final list = List<TransactionModel>.from(_transactions);
@@ -230,6 +257,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     ),
                                   ],
                                 ),
+                              ),
+                              const SizedBox(height: 6),
+                              HomeBudgetAtRisk(
+                                budgets: _budgetsNearLimit,
+                                onViewAll: widget.onViewAllBudgets,
+                                onOpenBudget: (budget) async {
+                                  await Navigator.push<void>(
+                                    context,
+                                    MaterialPageRoute<void>(
+                                      builder: (context) => BudgetDetailScreen(budget: budget),
+                                    ),
+                                  );
+                                  if (mounted) _load();
+                                },
                               ),
                               const SizedBox(height: 6),
                               // 3. Chi tiêu nhiều nhất

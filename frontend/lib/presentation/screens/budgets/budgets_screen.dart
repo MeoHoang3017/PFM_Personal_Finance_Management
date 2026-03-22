@@ -7,6 +7,8 @@ import '../../../core/utils/app_toast.dart';
 import '../../../core/utils/currency_format.dart';
 import '../../../data/models/budget_models.dart';
 import '../../../data/services/budget_service.dart';
+import '../../widgets/budget_category_leading.dart';
+import 'budget_detail_screen.dart';
 import 'budget_form_screen.dart';
 
 class BudgetsScreen extends StatefulWidget {
@@ -43,11 +45,22 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         _error = res.isSuccess ? null : res.message;
       });
     } catch (_) {
-      if (mounted) setState(() {
-        _loading = false;
-        _error = 'error_load_budgets'.tr();
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = context.tr('error_load_budgets');
+        });
+      }
     }
+  }
+
+  Future<void> _openDetail(BudgetModel budget) async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => BudgetDetailScreen(budget: budget),
+      ),
+    );
   }
 
   Future<void> _openForm([BudgetModel? budget]) async {
@@ -64,14 +77,14 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('delete_budget'.tr()),
-        content: Text('delete_budget_confirm'.tr()),
+        title: Text(ctx.tr('delete_budget')),
+        content: Text(ctx.tr('delete_budget_confirm')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('cancel'.tr())),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(ctx.tr('cancel'))),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: Theme.of(ctx).colorScheme.error),
-            child: Text('delete'.tr()),
+            child: Text(ctx.tr('delete')),
           ),
         ],
       ),
@@ -81,23 +94,23 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     if (mounted) {
       if (res.isSuccess) {
         _load();
-        AppToast.showSuccess(context, 'budget_deleted'.tr());
+        AppToast.showSuccess(context, context.tr('budget_deleted'));
       } else {
         AppToast.showError(context, res.message);
       }
     }
   }
 
-  String _periodLabel(BudgetPeriod p) {
+  String _periodLabel(BuildContext context, BudgetPeriod p) {
     switch (p) {
-      case BudgetPeriod.daily:
-        return 'period_day'.tr();
       case BudgetPeriod.weekly:
-        return 'period_week'.tr();
+        return context.tr('period_week');
       case BudgetPeriod.monthly:
-        return 'period_month'.tr();
+        return context.tr('period_month');
       case BudgetPeriod.yearly:
-        return 'period_year'.tr();
+        return context.tr('period_year');
+      case BudgetPeriod.custom:
+        return context.tr('period_custom');
     }
   }
 
@@ -109,7 +122,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     return Scaffold(
       backgroundColor: p.backgroundColor,
       appBar: AppBar(
-        title: Text('budgets'.tr(), style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600)),
+        title: Text(context.tr('budgets'), style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600)),
         backgroundColor: p.appBarBg,
         elevation: 0,
         foregroundColor: p.primaryText,
@@ -137,7 +150,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                             const SizedBox(height: 16),
                             Text(_error!, style: TextStyle(color: p.errorColor), textAlign: TextAlign.center),
                             const SizedBox(height: 16),
-                            FilledButton.icon(onPressed: _load, icon: const Icon(Icons.refresh), label: Text('retry'.tr())),
+                            FilledButton.icon(onPressed: _load, icon: const Icon(Icons.refresh), label: Text(context.tr('retry'))),
                           ],
                         ),
                       )
@@ -158,10 +171,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                     child: Icon(Icons.pie_chart_outline_rounded, size: 72, color: p.primaryAction.withValues(alpha: 0.6)),
                                   ),
                                   const SizedBox(height: 24),
-                                  Text('no_budgets'.tr(), style: TextStyle(color: p.primaryText, fontSize: 18, fontWeight: FontWeight.w600)),
+                                  Text(context.tr('no_budgets'), style: TextStyle(color: p.primaryText, fontSize: 18, fontWeight: FontWeight.w600)),
                                   const SizedBox(height: 8),
                                   Text(
-                                    'add_budget_subtitle'.tr(),
+                                    context.tr('add_budget_subtitle'),
                                     style: TextStyle(color: p.subtitleText, fontSize: 14),
                                     textAlign: TextAlign.center,
                                   ),
@@ -169,7 +182,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                   FilledButton.icon(
                                     onPressed: () => _openForm(),
                                     icon: const Icon(Icons.add_rounded),
-                                    label: Text('add_budget_btn'.tr()),
+                                    label: Text(context.tr('add_budget_btn')),
                                     style: FilledButton.styleFrom(
                                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -201,7 +214,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                             const SizedBox(width: 10),
                                             Expanded(
                                               child: Text(
-                                                'budget_over_limit'.tr() + ' ($overCount)',
+                                                context.tr('budget_over_limit_banner', namedArgs: {'count': '$overCount'}),
                                                 style: TextStyle(color: p.expenseColor, fontWeight: FontWeight.w600, fontSize: 13),
                                               ),
                                             ),
@@ -221,87 +234,121 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                         final isOver = b.isOverBudget == true;
                                         final progress = limit > 0 ? (spent / limit).clamp(0.0, 1.0) : 0.0;
                                         final periodStr = '${b.startDate.day}/${b.startDate.month} – ${b.endDate.day}/${b.endDate.month}';
-                                        final categoryLabel = b.categoryName?.isNotEmpty == true ? b.categoryName! : b.category;
+                                        final categoryLabel = b.categoryName?.isNotEmpty == true ? b.categoryName! : context.tr('budget_category_fallback');
+                                        final suffix = ' ${currencySymbolFromCode(b.currency)}';
                                         return Padding(
-                                          padding: const EdgeInsets.only(bottom: 12),
+                                          padding: const EdgeInsets.only(bottom: 10),
                                           child: Material(
                                             color: p.cardSurface,
-                                            borderRadius: BorderRadius.circular(16),
+                                            borderRadius: BorderRadius.circular(14),
                                             elevation: 0,
                                             shadowColor: Colors.black.withValues(alpha: 0.08),
                                             child: InkWell(
-                                              onTap: () => _openForm(b),
-                                              borderRadius: BorderRadius.circular(16),
+                                              onTap: () => _openDetail(b),
+                                              borderRadius: BorderRadius.circular(14),
                                               child: Padding(
-                                                padding: const EdgeInsets.all(16),
+                                                padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
                                                 child: Column(
                                                   crossAxisAlignment: CrossAxisAlignment.start,
                                                   children: [
                                                     Row(
+                                                      crossAxisAlignment: CrossAxisAlignment.start,
                                                       children: [
-                                                        Container(
-                                                          width: 44,
-                                                          height: 44,
-                                                          decoration: BoxDecoration(
-                                                            color: isOver ? p.expenseColor.withValues(alpha: 0.15) : p.primaryAction.withValues(alpha: 0.15),
-                                                            borderRadius: BorderRadius.circular(12),
-                                                          ),
-                                                          child: Icon(
-                                                            Icons.pie_chart_rounded,
-                                                            color: isOver ? p.expenseColor : p.primaryAction,
-                                                            size: 22,
-                                                          ),
+                                                        BudgetCategoryLeading(
+                                                          size: 42,
+                                                          categoryName: categoryLabel,
+                                                          iconKey: b.categoryIcon,
+                                                          colorHex: b.categoryColor,
+                                                          accentWhenNoColor: isOver ? p.expenseColor : p.primaryAction,
                                                         ),
-                                                        const SizedBox(width: 14),
+                                                        const SizedBox(width: 12),
                                                         Expanded(
                                                           child: Column(
                                                             crossAxisAlignment: CrossAxisAlignment.start,
                                                             children: [
                                                               Text(
                                                                 categoryLabel,
-                                                                style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600, fontSize: 16),
+                                                                style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w800, fontSize: 17, height: 1.15),
+                                                                maxLines: 2,
+                                                                overflow: TextOverflow.ellipsis,
                                                               ),
-                                                              const SizedBox(height: 2),
+                                                              const SizedBox(height: 4),
                                                               Text(
-                                                                '${_periodLabel(b.period)} · $periodStr',
-                                                                style: TextStyle(color: p.subtitleText, fontSize: 12),
+                                                                '${_periodLabel(context, b.period)} · $periodStr · ${b.currency}',
+                                                                style: TextStyle(color: p.subtitleText, fontSize: 11, fontWeight: FontWeight.w500),
                                                               ),
                                                             ],
                                                           ),
                                                         ),
                                                         if (!b.isActive)
-                                                          Container(
-                                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                                            decoration: BoxDecoration(
-                                                              color: p.borderColor.withValues(alpha: 0.4),
-                                                              borderRadius: BorderRadius.circular(8),
+                                                          Padding(
+                                                            padding: const EdgeInsets.only(right: 4),
+                                                            child: Container(
+                                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                                              decoration: BoxDecoration(
+                                                                color: p.borderColor.withValues(alpha: 0.4),
+                                                                borderRadius: BorderRadius.circular(8),
+                                                              ),
+                                                              child: Text(context.tr('inactive'), style: TextStyle(color: p.subtitleText, fontSize: 10)),
                                                             ),
-                                                            child: Text('inactive'.tr(), style: TextStyle(color: p.subtitleText, fontSize: 11)),
                                                           ),
                                                         PopupMenuButton<String>(
-                                                          icon: Icon(Icons.more_vert, color: p.iconMuted),
+                                                          icon: Icon(Icons.more_vert, color: p.iconMuted, size: 22),
+                                                          padding: EdgeInsets.zero,
+                                                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                                                           onSelected: (v) {
                                                             if (v == 'edit') _openForm(b);
                                                             if (v == 'delete') _confirmDelete(b);
                                                           },
                                                           itemBuilder: (ctx) => [
-                                                            PopupMenuItem(value: 'edit', child: Text('edit'.tr())),
-                                                            PopupMenuItem(value: 'delete', child: Text('delete'.tr())),
+                                                            PopupMenuItem(value: 'edit', child: Text(ctx.tr('edit'))),
+                                                            PopupMenuItem(value: 'delete', child: Text(ctx.tr('delete'))),
                                                           ],
                                                         ),
                                                       ],
                                                     ),
-                                                    const SizedBox(height: 14),
+                                                    const SizedBox(height: 10),
                                                     Row(
-                                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                      crossAxisAlignment: CrossAxisAlignment.end,
                                                       children: [
-                                                        Text(
-                                                          '${'budget_used'.tr()}: ${formatCurrency(spent)}',
-                                                          style: TextStyle(color: p.subtitleText, fontSize: 13),
+                                                        Expanded(
+                                                          child: Column(
+                                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                                            children: [
+                                                              Text(
+                                                                context.tr('budget_used'),
+                                                                style: TextStyle(color: p.subtitleText, fontSize: 11, fontWeight: FontWeight.w500),
+                                                              ),
+                                                              const SizedBox(height: 2),
+                                                              Text(
+                                                                formatCurrency(spent, suffix: suffix, compact: true),
+                                                                style: TextStyle(
+                                                                  color: p.expenseColor,
+                                                                  fontWeight: FontWeight.w800,
+                                                                  fontSize: 20,
+                                                                  letterSpacing: -0.3,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
                                                         ),
-                                                        Text(
-                                                          formatCurrency(limit),
-                                                          style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w700, fontSize: 14),
+                                                        Column(
+                                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                                          children: [
+                                                            Text(
+                                                              context.tr('budget_limit_label'),
+                                                              style: TextStyle(color: p.subtitleText, fontSize: 11, fontWeight: FontWeight.w500),
+                                                            ),
+                                                            const SizedBox(height: 2),
+                                                            Text(
+                                                              formatCurrency(limit, suffix: suffix, compact: true),
+                                                              style: TextStyle(
+                                                                color: p.primaryText,
+                                                                fontWeight: FontWeight.w700,
+                                                                fontSize: 16,
+                                                              ),
+                                                            ),
+                                                          ],
                                                         ),
                                                       ],
                                                     ),
@@ -310,32 +357,24 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                                       borderRadius: BorderRadius.circular(4),
                                                       child: LinearProgressIndicator(
                                                         value: progress > 1.0 ? 1.0 : progress,
-                                                        minHeight: 8,
-                                                        backgroundColor: p.borderColor.withValues(alpha: 0.4),
+                                                        minHeight: 6,
+                                                        backgroundColor: p.borderColor.withValues(alpha: 0.35),
                                                         valueColor: AlwaysStoppedAnimation<Color>(isOver ? p.expenseColor : p.primaryAction),
                                                       ),
                                                     ),
                                                     if (isOver) ...[
-                                                      const SizedBox(height: 10),
-                                                      Container(
-                                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                                        decoration: BoxDecoration(
-                                                          color: p.expenseColor.withValues(alpha: 0.12),
-                                                          borderRadius: BorderRadius.circular(10),
-                                                          border: Border.all(color: p.expenseColor.withValues(alpha: 0.4)),
-                                                        ),
-                                                        child: Row(
-                                                          children: [
-                                                            Icon(Icons.warning_amber_rounded, size: 20, color: p.expenseColor),
-                                                            const SizedBox(width: 8),
-                                                            Expanded(
-                                                              child: Text(
-                                                                'budget_over_limit'.tr(),
-                                                                style: TextStyle(color: p.expenseColor, fontWeight: FontWeight.w600, fontSize: 13),
-                                                              ),
+                                                      const SizedBox(height: 8),
+                                                      Row(
+                                                        children: [
+                                                          Icon(Icons.warning_amber_rounded, size: 16, color: p.expenseColor),
+                                                          const SizedBox(width: 6),
+                                                          Expanded(
+                                                            child: Text(
+                                                              context.tr('budget_over_limit'),
+                                                              style: TextStyle(color: p.expenseColor, fontWeight: FontWeight.w700, fontSize: 12),
                                                             ),
-                                                          ],
-                                                        ),
+                                                          ),
+                                                        ],
                                                       ),
                                                     ],
                                                   ],
@@ -360,7 +399,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               onPressed: () => _openForm(),
               backgroundColor: p.primaryAction,
               icon: const Icon(Icons.add_rounded),
-              label: Text('add_budget_btn'.tr()),
+              label: Text(context.tr('add_budget_btn')),
             )
           : null,
     );

@@ -1,8 +1,17 @@
+import { randomUUID } from "crypto";
 import Transaction from "../models/transaction.model";
 import Wallet from "../models/wallet.model";
 import User from "../models/user.model";
 import { paginate } from "../utils/pagination";
-import { TransactionResponse, PaginatedTransactionsResponse, CreateTransactionData, UpdateTransactionData, TransactionFilter } from "../types/transaction.type";
+import {
+    TransactionResponse,
+    PaginatedTransactionsResponse,
+    CreateTransactionData,
+    CreateWalletExchangeData,
+    UpdateTransactionData,
+    TransactionFilter,
+    WalletExchangeResult,
+} from "../types/transaction.type";
 import mongoose from "mongoose";
 import { getCurrencyByCodeService } from "./currency.service";
 import { convertCurrency } from "./exchangeRate.service";
@@ -33,13 +42,22 @@ function formatTransactionResponse(
     const cat = transaction.category;
     const categoryId =
         cat != null
-            ? typeof cat === 'object' && cat._id != null
+            ? typeof cat === "object" && cat._id != null
                 ? cat._id.toString()
                 : cat.toString()
-            : '';
+            : "";
     const categoryName =
-        typeof cat === 'object' && cat != null && typeof cat.name === 'string' ? cat.name : undefined;
-    return {
+        typeof cat === "object" && cat != null && typeof cat.name === "string" ? cat.name : undefined;
+    const cp = transaction.counterpartyWallet;
+    let counterpartyWallet: string | undefined;
+    if (cp != null) {
+        counterpartyWallet =
+            typeof cp === "object" && (cp as any)._id != null
+                ? (cp as any)._id.toString()
+                : String(cp);
+    }
+
+    const base: TransactionResponse = {
         id: transaction._id.toString(),
         amount: displayAmount,
         currency: (transaction.currency as string) || displayCurrency,
@@ -47,8 +65,8 @@ function formatTransactionResponse(
         category: categoryId,
         ...(categoryName != null ? { categoryName } : {}),
         date: transaction.date,
-        description: transaction.description || '',
-        notes: transaction.notes || '',
+        description: transaction.description || "",
+        notes: transaction.notes || "",
         wallet: (transaction.wallet && (transaction.wallet._id ?? transaction.wallet)).toString(),
         user: (transaction.user && (transaction.user._id ?? transaction.user)).toString(),
         displayCurrency,
@@ -56,6 +74,12 @@ function formatTransactionResponse(
         createdAt: transaction.createdAt,
         updatedAt: transaction.updatedAt,
     };
+    if (transaction.type === "exchange") {
+        if (counterpartyWallet != null) base.counterpartyWallet = counterpartyWallet;
+        if (transaction.exchangePairId) base.exchangePairId = transaction.exchangePairId;
+        if (transaction.exchangeLeg) base.exchangeLeg = transaction.exchangeLeg;
+    }
+    return base;
 }
 
 async function _getDisplayCurrencyAndSymbol(userId: string): Promise<{ displayCurrency: string; currencySymbol: string }> {
@@ -243,8 +267,220 @@ async function _createNoSession(data: CreateTransactionData): Promise<Transactio
     }
 }
 
+async function _applyExchangeLegToWallet(
+    tx: { wallet: mongoose.Types.ObjectId; exchangeLeg?: string; amount: number },
+    session: mongoose.ClientSession | null,
+    reverse: boolean
+): Promise<void> {
+    const wq = Wallet.findById(tx.wallet);
+    const w = session ? await wq.session(session) : await wq;
+    if (!w) return;
+    if (tx.exchangeLeg !== "out" && tx.exchangeLeg !== "in") {
+        throw new Error("Invalid exchange transaction: missing exchangeLeg");
+    }
+    const out = tx.exchangeLeg === "out";
+    const delta = reverse ? (out ? tx.amount : -tx.amount) : out ? -tx.amount : tx.amount;
+    w.balance += delta;
+    if (session) await w.save({ session });
+    else await w.save();
+}
+
+async function _deleteExchangePair(transactionId: string, session: mongoose.ClientSession | null): Promise<void> {
+    const txQuery = Transaction.findById(transactionId);
+    const tx = session ? await txQuery.session(session) : await txQuery;
+    if (!tx || tx.type !== "exchange" || !tx.exchangePairId) {
+        return;
+    }
+    const pairQuery = Transaction.find({
+        exchangePairId: tx.exchangePairId,
+        user: tx.user,
+    });
+    const all = session ? await pairQuery.session(session) : await pairQuery;
+    for (const t of all) {
+        await _applyExchangeLegToWallet(t, session, true);
+        const dq = Transaction.findByIdAndDelete(t._id);
+        if (session) await dq.session(session);
+        else await dq;
+    }
+}
+
+async function createWalletExchangeService(data: CreateWalletExchangeData): Promise<WalletExchangeResult> {
+    if (data.fromWallet === data.toWallet) {
+        throw new Error("Source and destination wallets must differ");
+    }
+    if (data.amount <= 0) {
+        throw new Error("Amount must be positive");
+    }
+    if (useMongoTransactions()) {
+        try {
+            return await _exchangeWithSession(data);
+        } catch (error) {
+            if (_isReplicaSetRequiredError(error)) {
+                _mongoTransactionsSupported = false;
+                return _exchangeNoSession(data);
+            }
+            throw error;
+        }
+    }
+    return _exchangeNoSession(data);
+}
+
+async function _exchangeWithSession(data: CreateWalletExchangeData): Promise<WalletExchangeResult> {
+    const session = await mongoose.startSession();
+    try {
+        await session.startTransaction();
+    } catch (e) {
+        session.endSession();
+        throw e;
+    }
+    try {
+        const fromW = await Wallet.findById(data.fromWallet).session(session);
+        const toW = await Wallet.findById(data.toWallet).session(session);
+        if (!fromW || !toW) throw new Error("Wallet not found");
+        if (fromW.user.toString() !== data.user || toW.user.toString() !== data.user) {
+            throw new Error("Wallets must belong to the current user");
+        }
+        if (fromW.balance < data.amount) {
+            throw new Error("Insufficient balance in source wallet");
+        }
+        const fromCurr = ((fromW as any).currency as string) || "USD";
+        const toCurr = ((toW as any).currency as string) || "USD";
+        let amountInTo = data.amount;
+        if (fromCurr.toUpperCase() !== toCurr.toUpperCase()) {
+            const conv = await convertCurrency(data.amount, fromCurr, toCurr, data.date);
+            if (conv === null) {
+                throw new Error("Could not convert between wallet currencies; check exchange rates");
+            }
+            amountInTo = conv;
+        }
+        const pairId = randomUUID();
+        fromW.balance -= data.amount;
+        toW.balance += amountInTo;
+        await fromW.save({ session });
+        await toW.save({ session });
+
+        const txOut = new Transaction({
+            amount: data.amount,
+            currency: fromCurr.toUpperCase(),
+            type: "exchange",
+            date: data.date,
+            description: data.description || "",
+            notes: data.notes || "",
+            wallet: fromW._id,
+            counterpartyWallet: toW._id,
+            exchangePairId: pairId,
+            exchangeLeg: "out",
+            user: new mongoose.Types.ObjectId(data.user),
+        });
+        const txIn = new Transaction({
+            amount: amountInTo,
+            currency: toCurr.toUpperCase(),
+            type: "exchange",
+            date: data.date,
+            description: data.description || "",
+            notes: data.notes || "",
+            wallet: toW._id,
+            counterpartyWallet: fromW._id,
+            exchangePairId: pairId,
+            exchangeLeg: "in",
+            user: new mongoose.Types.ObjectId(data.user),
+        });
+        await txOut.save({ session });
+        await txIn.save({ session });
+        await session.commitTransaction();
+
+        const pOut = await Transaction.findById(txOut._id).populate("wallet", "currency").lean();
+        const pIn = await Transaction.findById(txIn._id).populate("wallet", "currency").lean();
+        return {
+            exchangePairId: pairId,
+            outbound: await _formatTransactionWithConversion(pOut ?? txOut, data.user),
+            inbound: await _formatTransactionWithConversion(pIn ?? txIn, data.user),
+        };
+    } catch (error) {
+        await session.abortTransaction().catch(() => {});
+        throw error;
+    } finally {
+        session.endSession();
+    }
+}
+
+async function _exchangeNoSession(data: CreateWalletExchangeData): Promise<WalletExchangeResult> {
+    const fromW = await Wallet.findById(data.fromWallet);
+    const toW = await Wallet.findById(data.toWallet);
+    if (!fromW || !toW) throw new Error("Wallet not found");
+    if (fromW.user.toString() !== data.user || toW.user.toString() !== data.user) {
+        throw new Error("Wallets must belong to the current user");
+    }
+    if (fromW.balance < data.amount) {
+        throw new Error("Insufficient balance in source wallet");
+    }
+    const fromCurr = ((fromW as any).currency as string) || "USD";
+    const toCurr = ((toW as any).currency as string) || "USD";
+    let amountInTo = data.amount;
+    if (fromCurr.toUpperCase() !== toCurr.toUpperCase()) {
+        const conv = await convertCurrency(data.amount, fromCurr, toCurr, data.date);
+        if (conv === null) {
+            throw new Error("Could not convert between wallet currencies; check exchange rates");
+        }
+        amountInTo = conv;
+    }
+    const pairId = randomUUID();
+    const prevFrom = fromW.balance;
+    const prevTo = toW.balance;
+    fromW.balance -= data.amount;
+    toW.balance += amountInTo;
+    await fromW.save();
+    await toW.save();
+    try {
+        const txOut = new Transaction({
+            amount: data.amount,
+            currency: fromCurr.toUpperCase(),
+            type: "exchange",
+            date: data.date,
+            description: data.description || "",
+            notes: data.notes || "",
+            wallet: fromW._id,
+            counterpartyWallet: toW._id,
+            exchangePairId: pairId,
+            exchangeLeg: "out",
+            user: new mongoose.Types.ObjectId(data.user),
+        });
+        const txIn = new Transaction({
+            amount: amountInTo,
+            currency: toCurr.toUpperCase(),
+            type: "exchange",
+            date: data.date,
+            description: data.description || "",
+            notes: data.notes || "",
+            wallet: toW._id,
+            counterpartyWallet: fromW._id,
+            exchangePairId: pairId,
+            exchangeLeg: "in",
+            user: new mongoose.Types.ObjectId(data.user),
+        });
+        await txOut.save();
+        await txIn.save();
+        const pOut = await Transaction.findById(txOut._id).populate("wallet", "currency").lean();
+        const pIn = await Transaction.findById(txIn._id).populate("wallet", "currency").lean();
+        return {
+            exchangePairId: pairId,
+            outbound: await _formatTransactionWithConversion(pOut ?? txOut, data.user),
+            inbound: await _formatTransactionWithConversion(pIn ?? txIn, data.user),
+        };
+    } catch (err) {
+        fromW.balance = prevFrom;
+        toW.balance = prevTo;
+        await fromW.save();
+        await toW.save();
+        throw err;
+    }
+}
+
 // Create new transaction (tự fallback sang rollback thủ công nếu MongoDB standalone)
 async function createTransactionService(data: CreateTransactionData): Promise<TransactionResponse> {
+    if (data.type === "exchange") {
+        throw new Error("Use POST /api/transactions/exchange for wallet transfers");
+    }
     if (useMongoTransactions()) {
         try {
             return await _createWithSession(data);
@@ -270,6 +506,9 @@ async function _updateWithSession(transactionId: string, data: UpdateTransaction
     try {
         const transaction = await Transaction.findById(transactionId).session(session);
         if (!transaction) throw new Error('Transaction not found');
+        if (transaction.type === 'exchange') {
+            throw new Error('Exchange transactions cannot be updated; delete the transfer to reverse balances');
+        }
         const needsWalletUpdate = data.amount !== undefined || data.type !== undefined || data.wallet !== undefined;
         if (needsWalletUpdate) {
             const oldWallet = await Wallet.findById(transaction.wallet).session(session);
@@ -336,6 +575,9 @@ async function _updateNoSession(transactionId: string, data: UpdateTransactionDa
     const transaction = await Transaction.findById(transactionId);
     if (!transaction) {
         throw new Error('Transaction not found');
+    }
+    if (transaction.type === 'exchange') {
+        throw new Error('Exchange transactions cannot be updated; delete the transfer to reverse balances');
     }
 
     const needsWalletUpdate = data.amount !== undefined || data.type !== undefined || data.wallet !== undefined;
@@ -421,6 +663,11 @@ async function _deleteWithSession(transactionId: string): Promise<{ message: str
     try {
         const transaction = await Transaction.findById(transactionId).session(session);
         if (!transaction) throw new Error('Transaction not found');
+        if (transaction.type === 'exchange' && transaction.exchangePairId) {
+            await _deleteExchangePair(transactionId, session);
+            await session.commitTransaction();
+            return { message: 'Transaction deleted successfully' };
+        }
         const wallet = await Wallet.findById(transaction.wallet).session(session);
         if (wallet) {
             if (transaction.type === 'income') wallet.balance -= transaction.amount;
@@ -442,6 +689,10 @@ async function _deleteNoSession(transactionId: string): Promise<{ message: strin
     const transaction = await Transaction.findById(transactionId);
     if (!transaction) {
         throw new Error('Transaction not found');
+    }
+    if (transaction.type === 'exchange' && transaction.exchangePairId) {
+        await _deleteExchangePair(transactionId, null);
+        return { message: 'Transaction deleted successfully' };
     }
     const wallet = await Wallet.findById(transaction.wallet);
     let previousBalance: number | null = null;
@@ -493,6 +744,9 @@ async function _duplicateWithSession(transactionId: string): Promise<Transaction
     try {
         const original = await Transaction.findById(transactionId).session(session);
         if (!original) throw new Error('Transaction not found');
+        if (original.type === 'exchange') {
+            throw new Error('Exchange transactions cannot be duplicated');
+        }
         const wallet = await Wallet.findById(original.wallet).session(session);
         if (!wallet) throw new Error('Wallet not found');
         if (original.type === 'income') wallet.balance += original.amount;
@@ -528,6 +782,9 @@ async function _duplicateNoSession(transactionId: string): Promise<TransactionRe
     const original = await Transaction.findById(transactionId);
     if (!original) {
         throw new Error('Transaction not found');
+    }
+    if (original.type === 'exchange') {
+        throw new Error('Exchange transactions cannot be duplicated');
     }
     const wallet = await Wallet.findById(original.wallet);
     if (!wallet) {
@@ -585,8 +842,9 @@ export {
     getUserTransactionsService,
     getTransactionByIdService,
     createTransactionService,
+    createWalletExchangeService,
     updateTransactionService,
     deleteTransactionService,
-    duplicateTransactionService
+    duplicateTransactionService,
 };
 
