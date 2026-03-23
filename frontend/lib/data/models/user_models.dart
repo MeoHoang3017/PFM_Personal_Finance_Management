@@ -49,7 +49,6 @@ class UserProfile {
 
 class UpdateProfileData {
   final String? username;
-  final String? email;
   final String? currentPassword;
   final String? newPassword;
   final String? theme;
@@ -59,7 +58,6 @@ class UpdateProfileData {
 
   UpdateProfileData({
     this.username,
-    this.email,
     this.currentPassword,
     this.newPassword,
     this.theme,
@@ -71,7 +69,6 @@ class UpdateProfileData {
   Map<String, dynamic> toJson() {
     final m = <String, dynamic>{};
     if (username != null) m['username'] = username;
-    if (email != null) m['email'] = email;
     if (currentPassword != null) m['currentPassword'] = currentPassword;
     if (newPassword != null) m['newPassword'] = newPassword;
     if (theme != null) m['theme'] = theme;

@@ -97,19 +97,17 @@ async function getSpentInRange(
         category: categoryId,
         date: { $gte: startDate, $lte: endDate },
     })
-        .populate("wallet", "currency")
         .lean();
 
     let total = 0;
     for (const tx of txs) {
-        const w = tx.wallet as { currency?: string } | mongoose.Types.ObjectId | undefined;
-        const walletCurrency =
-            w != null && typeof w === "object" && "currency" in w && typeof (w as { currency?: string }).currency === "string"
-                ? String((w as { currency: string }).currency).toUpperCase()
-                : "USD";
+        /** Đơn vị ghi số tiền trên giao dịch (user preference tại thời điểm ghi; legacy có thể trùng ví). */
+        const txnCurrency = String((tx as any).currency || "USD")
+            .trim()
+            .toUpperCase() || "USD";
         let amt = typeof tx.amount === "number" ? tx.amount : 0;
-        if (walletCurrency !== displayCurrency) {
-            const converted = await convertCurrency(amt, walletCurrency, displayCurrency, tx.date as Date);
+        if (txnCurrency !== displayCurrency) {
+            const converted = await convertCurrency(amt, txnCurrency, displayCurrency, tx.date as Date);
             if (converted !== null) {
                 amt = converted;
             }
@@ -132,19 +130,39 @@ function apiPeriodFromDoc(period: string | undefined): string {
     return period || "monthly";
 }
 
+/**
+ * Quy hạn mức từ đơn vị lưu trong budget → tiền user (hiển thị API).
+ */
+async function budgetAmountInUserCurrency(
+    rawAmount: number,
+    budgetStoredCurrency: string,
+    userCurrency: string
+): Promise<number> {
+    const bc = budgetStoredCurrency.trim().toUpperCase() || "USD";
+    const uc = userCurrency.trim().toUpperCase() || "USD";
+    if (bc === uc) return rawAmount;
+    const converted = await convertCurrency(rawAmount, bc, uc, new Date());
+    if (converted !== null) return converted;
+    console.warn(`[Budget] FX missing: amount ${bc} → ${uc}; returning raw amount (ambiguous).`);
+    return rawAmount;
+}
+
 function formatBudgetResponse(
     budget: any,
     window: { start: Date; end: Date },
     extra?: {
         spentAmount?: number;
+        /** Hạn mức đã quy về user.currency (khi khác budget.currency trong DB). */
+        displayAmount?: number;
         categoryName?: string;
         categoryIcon?: string;
         categoryColor?: string;
+        /** Luôn = User.currency cho response hiển thị. */
         currency: string;
     }
 ): BudgetResponse {
     const spent = extra?.spentAmount ?? 0;
-    const amount = budget.amount ?? 0;
+    const amount = extra?.displayAmount !== undefined ? extra.displayAmount : (budget.amount ?? 0);
     const currency = extra?.currency ?? "USD";
     return {
         id: budget._id.toString(),
@@ -188,7 +206,7 @@ async function getUserBudgetsService(
         .lean();
 
     const userDoc = await User.findById(filter.user).select("currency").lean();
-    const userCurrency = ((userDoc?.currency as string) || "USD").toUpperCase();
+    const userCurrency = ((userDoc?.currency as string) || "USD").trim().toUpperCase() || "USD";
 
     const userId = new mongoose.Types.ObjectId(filter.user);
     const ref = new Date();
@@ -197,17 +215,19 @@ async function getUserBudgetsService(
             const categoryId = b.category && (b.category._id ?? b.category);
             const window = resolveBudgetWindow(b, ref);
             const budgetCur = resolveBudgetCurrency(b, userCurrency);
-            const spentAmount = await getSpentInRange(userId, categoryId, window.start, window.end, budgetCur);
+            const spentAmount = await getSpentInRange(userId, categoryId, window.start, window.end, userCurrency);
+            const displayAmount = await budgetAmountInUserCurrency(b.amount ?? 0, budgetCur, userCurrency);
             const cat = b.category as { name?: string; icon?: string; color?: string } | undefined;
             const categoryName = cat && typeof cat.name === "string" ? cat.name : undefined;
             const categoryIcon = cat && typeof cat.icon === "string" && cat.icon.trim() !== "" ? cat.icon : undefined;
             const categoryColor = cat && typeof cat.color === "string" && cat.color.trim() !== "" ? cat.color : undefined;
             return formatBudgetResponse(b, window, {
                 spentAmount,
+                displayAmount,
                 categoryName,
                 categoryIcon,
                 categoryColor,
-                currency: budgetCur,
+                currency: userCurrency,
             });
         })
     );
@@ -221,22 +241,24 @@ async function getBudgetByIdService(budgetId: string): Promise<BudgetResponse> {
     }
     const userId = budget.user as mongoose.Types.ObjectId;
     const userDoc = await User.findById(userId).select("currency").lean();
-    const userCurrency = ((userDoc?.currency as string) || "USD").toUpperCase();
+    const userCurrency = ((userDoc?.currency as string) || "USD").trim().toUpperCase() || "USD";
     const cat = budget.category as { name?: string; icon?: string; color?: string; _id?: mongoose.Types.ObjectId } | undefined;
     const categoryId = cat && ((cat as any)._id ?? cat);
     const ref = new Date();
     const window = resolveBudgetWindow(budget, ref);
     const budgetCur = resolveBudgetCurrency(budget as any, userCurrency);
-    const spentAmount = await getSpentInRange(userId, categoryId, window.start, window.end, budgetCur);
+    const spentAmount = await getSpentInRange(userId, categoryId, window.start, window.end, userCurrency);
+    const displayAmount = await budgetAmountInUserCurrency((budget as any).amount ?? 0, budgetCur, userCurrency);
     const categoryName = cat && typeof cat.name === "string" ? cat.name : undefined;
     const categoryIcon = cat && typeof cat.icon === "string" && cat.icon.trim() !== "" ? cat.icon : undefined;
     const categoryColor = cat && typeof cat.color === "string" && cat.color.trim() !== "" ? cat.color : undefined;
     return formatBudgetResponse(budget, window, {
         spentAmount,
+        displayAmount,
         categoryName,
         categoryIcon,
         categoryColor,
-        currency: budgetCur,
+        currency: userCurrency,
     });
 }
 
@@ -250,7 +272,7 @@ async function createBudgetService(data: CreateBudgetData): Promise<BudgetRespon
     }
 
     const userDoc = await User.findById(data.user).select("currency").lean();
-    const userCurrency = ((userDoc?.currency as string) || "USD").toUpperCase();
+    const userCurrency = ((userDoc?.currency as string) || "USD").trim().toUpperCase() || "USD";
     const currency = (data.currency && String(data.currency).trim() !== "" ? String(data.currency) : userCurrency).toUpperCase();
 
     let startDate: Date | undefined;
@@ -287,14 +309,22 @@ async function createBudgetService(data: CreateBudgetData): Promise<BudgetRespon
         categoryId,
         window.start,
         window.end,
-        currency
+        userCurrency
     );
+    const displayAmount = await budgetAmountInUserCurrency(saved.amount ?? 0, currency, userCurrency);
     const b = populated ?? saved.toObject();
     const cat = b.category as { name?: string; icon?: string; color?: string } | undefined;
     const categoryName = cat && typeof cat.name === "string" ? cat.name : undefined;
     const categoryIcon = cat && typeof cat.icon === "string" && cat.icon.trim() !== "" ? cat.icon : undefined;
     const categoryColor = cat && typeof cat.color === "string" && cat.color.trim() !== "" ? cat.color : undefined;
-    return formatBudgetResponse(b, window, { spentAmount, categoryName, categoryIcon, categoryColor, currency });
+    return formatBudgetResponse(b, window, {
+        spentAmount,
+        displayAmount,
+        categoryName,
+        categoryIcon,
+        categoryColor,
+        currency: userCurrency,
+    });
 }
 
 async function updateBudgetService(budgetId: string, data: UpdateBudgetData): Promise<BudgetResponse> {
@@ -364,21 +394,23 @@ async function updateBudgetService(budgetId: string, data: UpdateBudgetData): Pr
     const window = resolveBudgetWindow(populated ?? updated.toObject(), ref);
     const userId = updated.user as mongoose.Types.ObjectId;
     const userDoc = await User.findById(userId).select("currency").lean();
-    const userCurrency = ((userDoc?.currency as string) || "USD").toUpperCase();
+    const userCurrency = ((userDoc?.currency as string) || "USD").trim().toUpperCase() || "USD";
     const cat = populated?.category as { name?: string; icon?: string; color?: string; _id?: mongoose.Types.ObjectId } | undefined;
     const categoryId = (cat && (cat._id ?? cat)) ?? updated.category;
     const bObj = populated ?? updated.toObject();
     const budgetCur = resolveBudgetCurrency(bObj as any, userCurrency);
-    const spentAmount = await getSpentInRange(userId, categoryId, window.start, window.end, budgetCur);
+    const spentAmount = await getSpentInRange(userId, categoryId, window.start, window.end, userCurrency);
+    const displayAmount = await budgetAmountInUserCurrency((updated as any).amount ?? 0, budgetCur, userCurrency);
     const categoryName = cat && typeof cat.name === "string" ? cat.name : undefined;
     const categoryIcon = cat && typeof cat.icon === "string" && cat.icon.trim() !== "" ? cat.icon : undefined;
     const categoryColor = cat && typeof cat.color === "string" && cat.color.trim() !== "" ? cat.color : undefined;
     return formatBudgetResponse(populated ?? updated.toObject(), window, {
         spentAmount,
+        displayAmount,
         categoryName,
         categoryIcon,
         categoryColor,
-        currency: budgetCur,
+        currency: userCurrency,
     });
 }
 

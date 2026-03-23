@@ -248,6 +248,69 @@ async function updateExchangeRates(baseCurrency: string = 'USD'): Promise<{ succ
     }
 }
 
+/** Đầu ngày theo timezone máy chủ (khớp cách lưu trong [saveExchangeRates]). */
+function startOfLocalDay(d: Date = new Date()): Date {
+    const x = new Date(d);
+    x.setHours(0, 0, 0, 0);
+    return x;
+}
+
+/** Tránh gọi API liên tục khi thiếu key hoặc lỗi mạng. */
+let lastEnsureFailureAt = 0;
+const ENSURE_FAIL_COOLDOWN_MS = 2 * 60 * 1000;
+
+/** Promise đang tải tỷ giá (một lần cho mọi request đồng thời). */
+let ensureRatesInFlight: Promise<void> | null = null;
+
+/**
+ * Nếu chưa có bản ghi tỷ giá nào cho base (EXCHANGE_RATE_BASE_CURRENCY) trong ngày hôm nay,
+ * tự gọi API và lưu DB (giống POST update). Chỉ chạy khi đang tra cứu tỷ giá **cho hôm nay**,
+ * không tự fetch cho ngày trong quá khứ.
+ */
+async function ensureTodaysRatesIfNeeded(forDate?: Date): Promise<void> {
+    const base = (process.env.EXCHANGE_RATE_BASE_CURRENCY || "USD").toUpperCase();
+    const queryDay = startOfLocalDay(forDate ? new Date(forDate) : new Date());
+    const today = startOfLocalDay(new Date());
+
+    if (queryDay.getTime() !== today.getTime()) {
+        return;
+    }
+
+    const hasToday = await ExchangeRate.exists({
+        baseCurrency: base,
+        date: today,
+    });
+    if (hasToday) {
+        return;
+    }
+
+    if (Date.now() - lastEnsureFailureAt < ENSURE_FAIL_COOLDOWN_MS) {
+        return;
+    }
+
+    if (!ensureRatesInFlight) {
+        ensureRatesInFlight = (async () => {
+            try {
+                console.log(
+                    `[ExchangeRate] Auto-fetch: chưa có tỷ giá ${base} cho ngày ${today.toISOString().slice(0, 10)} — đang lấy từ API...`
+                );
+                const result = await updateExchangeRates(base);
+                if (!result.success) {
+                    lastEnsureFailureAt = Date.now();
+                    console.warn(`[ExchangeRate] Auto-fetch thất bại: ${result.message}`);
+                }
+            } catch (e: unknown) {
+                lastEnsureFailureAt = Date.now();
+                const msg = e instanceof Error ? e.message : String(e);
+                console.warn(`[ExchangeRate] Auto-fetch lỗi: ${msg}`);
+            } finally {
+                ensureRatesInFlight = null;
+            }
+        })();
+    }
+    await ensureRatesInFlight;
+}
+
 /**
  * Find one rate document (exact date or latest)
  */
@@ -285,6 +348,8 @@ async function getExchangeRate(
     date?: Date
 ): Promise<number | null> {
     try {
+        await ensureTodaysRatesIfNeeded(date);
+
         const queryDate = date ? new Date(date) : new Date();
         queryDate.setHours(0, 0, 0, 0);
 
@@ -324,10 +389,13 @@ async function convertCurrency(
         }
 
         const rate = await getExchangeRate(fromCurrency, toCurrency, date);
+        console.log(rate);
         if (rate === null) return null;
 
         const raw = amount * rate;
         const decimals = await getDecimalPlacesForCurrency(toCurrency);
+        console.log("Before convert: ", amount);
+        console.log("After convert: ", Math.round(raw * Math.pow(10, decimals)) / Math.pow(10, decimals));
         return Math.round(raw * Math.pow(10, decimals)) / Math.pow(10, decimals);
     } catch (error: any) {
         if (error.message?.includes('not supported')) throw error;
@@ -344,5 +412,6 @@ export {
     convertCurrency,
     getAllCurrencies,
     validateCurrencyCodes,
+    ensureTodaysRatesIfNeeded,
 };
 

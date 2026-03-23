@@ -1,7 +1,34 @@
+import mongoose from 'mongoose';
 import User from '../models/user.model';
+import Wallet from '../models/wallet.model';
 import { paginate } from '../utils/pagination';
 import { hashPassword, isMatch } from '../utils/hasher';
 import { UserResponse, PaginatedUsersResponse, UpdateUserSettingsData, UpdateProfileData } from '../types/user.type';
+import { convertCurrency } from './exchangeRate.service';
+
+/**
+ * Khi user đổi tiền tệ ưu tiên: mỗi ví phải đổi cả `currency` lẫn `balance` đã quy đổi.
+ * Trước đây chỉ updateMany({ currency }) → số dư vẫn theo đơn vị cũ (lỗi nghiêm trọng).
+ */
+async function syncWalletCurrenciesAndBalances(userId: mongoose.Types.ObjectId, newCurrencyCode: string): Promise<void> {
+    const newCode = newCurrencyCode.trim().toUpperCase() || 'USD';
+    const wallets = await Wallet.find({ user: userId });
+    for (const w of wallets) {
+        const oldCur = String(w.currency || 'USD').trim().toUpperCase() || 'USD';
+        const oldBal = w.balance ?? 0;
+        if (oldCur === newCode) {
+            await Wallet.updateOne({ _id: w._id }, { $set: { currency: newCode } });
+            continue;
+        }
+        const newBal = await convertCurrency(oldBal, oldCur, newCode, new Date());
+        if (newBal === null) {
+            throw new Error(
+                `Cannot convert wallet "${w.name}" balance from ${oldCur} to ${newCode}. Add exchange rates (e.g. run fetch exchange rates) or try another currency.`
+            );
+        }
+        await Wallet.updateOne({ _id: w._id }, { $set: { currency: newCode, balance: newBal } });
+    }
+}
 
 // Convert user document to response format
 function formatUserResponse(user: any): UserResponse {
@@ -96,8 +123,13 @@ async function updateUserSettingsService(userId: string, data: UpdateUserSetting
             user.language = data.language;
         }
 
-        if (data.currency) {
-            user.currency = data.currency;
+        if (data.currency != null && String(data.currency).trim() !== '') {
+            const code = String(data.currency).trim().toUpperCase();
+            const prevCode = String(user.currency || 'USD').trim().toUpperCase() || 'USD';
+            if (code !== prevCode) {
+                await syncWalletCurrenciesAndBalances(user._id, code);
+            }
+            user.currency = code;
         }
 
         if (data.avatarUrl !== undefined) {
@@ -148,17 +180,7 @@ async function updateProfileService(userId: string, data: UpdateProfileData): Pr
             user.username = data.username;
         }
 
-        // Update email
-        if (data.email) {
-            const existingEmail = await User.findOne({
-                email: data.email,
-                _id: { $ne: userId }
-            });
-            if (existingEmail) {
-                throw new Error('Email already registered');
-            }
-            user.email = data.email;
-        }
+        // Email is not editable via profile (account identifier).
 
         // Update password
         if (user.password && data.newPassword) {
@@ -186,8 +208,13 @@ async function updateProfileService(userId: string, data: UpdateProfileData): Pr
             user.language = data.language;
         }
 
-        if (data.currency) {
-            user.currency = data.currency;
+        if (data.currency != null && String(data.currency).trim() !== '') {
+            const code = String(data.currency).trim().toUpperCase();
+            const prevCode = String(user.currency || 'USD').trim().toUpperCase() || 'USD';
+            if (code !== prevCode) {
+                await syncWalletCurrenciesAndBalances(user._id, code);
+            }
+            user.currency = code;
         }
 
         if (data.avatarUrl !== undefined) {

@@ -4,9 +4,9 @@ export type TransactionType = "income" | "expense" | "transfer" | "exchange";
 
 export interface TransactionResponse {
     id: string;
-    /** Amount in user's display currency (converted from wallet currency if needed). */
+    /** Amount in user's preferred currency (converted from wallet currency when needed). */
     amount: number;
-    /** Currency of this transaction amount (captured at creation time). */
+    /** Same as displayCurrency: user's preferred currency code (not wallet/original txn currency). */
     currency: string;
     type: TransactionType;
     /** Category id; rỗng với type exchange. */
@@ -36,6 +36,7 @@ export interface PaginatedTransactionsResponse {
 }
 
 export interface CreateTransactionData {
+    /** Số tiền theo tiền tệ ưu tiên của user (không phải đơn vị ví). Backend quy đổi sang tiền ví khi cộng/trừ balance. */
     amount: number;
     type: TransactionType;
     category: string;

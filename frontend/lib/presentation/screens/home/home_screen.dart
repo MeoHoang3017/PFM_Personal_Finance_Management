@@ -1,6 +1,8 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/app/home_data_notifier.dart';
+import '../../../core/di/injection.dart';
 import '../../../core/theme/theme_palette.dart';
 import 'dashboard_screen.dart';
 import '../transactions/transactions_screen.dart';
@@ -8,7 +10,7 @@ import 'add_menu_screen.dart';
 import '../budgets/budgets_screen.dart';
 import '../profile/profile_screen.dart';
 
-/// Home chính — giao diện FinTracker: BottomNavigationBar 5 tab (Tổng quan, Giao dịch, Thêm, Ngân sách, Cá nhân), ô giữa là nút Thêm.
+/// Home chính — BottomNavigationBar 5 tab (Tổng quan, Giao dịch, Thêm, Ngân sách, Cá nhân).
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -20,8 +22,9 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   final GlobalKey _dashboardKey = GlobalKey();
   final GlobalKey _budgetsKey = GlobalKey();
+  final GlobalKey _transactionsKey = GlobalKey();
 
-  static _tabs(BuildContext context) => [
+  static List<({IconData icon, String label})> _tabs(BuildContext context) => [
     (icon: Icons.home_outlined, label: 'nav_overview'.tr()),
     (icon: Icons.receipt_long_outlined, label: 'nav_transactions'.tr()),
     (icon: Icons.add, label: 'nav_add'.tr()),
@@ -29,9 +32,36 @@ class _HomeScreenState extends State<HomeScreen> {
     (icon: Icons.person_outline, label: 'nav_profile'.tr()),
   ];
 
-  void _onTransactionSaved() {
+  void _refreshOverviewAndBudgets() {
     (_dashboardKey.currentState as dynamic)?.refresh();
     (_budgetsKey.currentState as dynamic)?.refresh();
+  }
+
+  /// Sau CRUD giao dịch / đổi tiền tệ / hub: làm mới tổng quan, ngân sách, danh sách giao dịch.
+  void _refreshAll() {
+    _refreshOverviewAndBudgets();
+    (_transactionsKey.currentState as dynamic)?.refresh(force: true);
+  }
+
+  void _onHomeHubNotify() {
+    if (!mounted) return;
+    _refreshAll();
+  }
+
+  void _onTransactionSaved() {
+    _refreshAll();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    getIt<HomeDataNotifier>().addListener(_onHomeHubNotify);
+  }
+
+  @override
+  void dispose() {
+    getIt<HomeDataNotifier>().removeListener(_onHomeHubNotify);
+    super.dispose();
   }
 
   @override
@@ -44,10 +74,15 @@ class _HomeScreenState extends State<HomeScreen> {
         onViewAllTransactions: () => setState(() => _currentIndex = 1),
         onViewAllBudgets: () => setState(() => _currentIndex = 3),
       ),
-      TransactionsScreen(onTransactionSaved: _onTransactionSaved),
-      const AddMenuScreen(),
+      TransactionsScreen(
+        key: _transactionsKey,
+        onTransactionSaved: _onTransactionSaved,
+      ),
+      AddMenuScreen(onDataChanged: () => getIt<HomeDataNotifier>().requestRefresh(force: true)),
       BudgetsScreen(key: _budgetsKey),
-      const ProfileScreen(),
+      ProfileScreen(
+        onHomeDataChanged: () => getIt<HomeDataNotifier>().requestRefresh(force: true),
+      ),
     ];
 
     return Scaffold(
@@ -62,7 +97,16 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedItemColor: p.primaryAction,
         unselectedItemColor: p.subtitleText,
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (index) {
+          setState(() => _currentIndex = index);
+          // Vào tab Giao dịch: fetch lại danh sách (theo tháng đang chọn); force để luôn có dữ liệu mới khi quay lại tab.
+          if (index == 1) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              (_transactionsKey.currentState as dynamic)?.refresh(force: true);
+            });
+          }
+        },
         items: [
           BottomNavigationBarItem(
             icon: Icon(tabs[0].icon),

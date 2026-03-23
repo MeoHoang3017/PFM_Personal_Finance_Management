@@ -1,4 +1,6 @@
 import { User, Wallet } from "../models";
+import { normalizeEmail } from "../utils/emailNormalize";
+import { findUserByEmailCaseInsensitive } from "../utils/userLookup";
 import { hashPassword, isMatch } from "../utils/hasher";
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from "../utils/jwt";
 import { sendOtpService, verifyOtpService, checkOtpVerifiedService, deleteOtpService } from "./otp.service";
@@ -7,19 +9,15 @@ import { RegisterData, LoginData, TokenResponse, ForgotPasswordData, ResetPasswo
 
 //Register Service (no transaction - compatible with standalone MongoDB)
 async function registerService(data: RegisterData): Promise<TokenResponse> {
-    const { username, email, password, otp } = data;
+    const { username, password, otp } = data;
+    const email = normalizeEmail(data.email);
 
-    // Check if user already exists
-    const existingUser = await User.findOne({
-        $or: [{ email }, { username }]
-    });
-
-    if (existingUser) {
-        throw new Error(
-            existingUser.email === email
-                ? 'Email already registered'
-                : 'Username already taken'
-        );
+    // Check if user already exists (email không phân biệt hoa thường)
+    if (await findUserByEmailCaseInsensitive(email)) {
+        throw new Error('Email already registered');
+    }
+    if (await User.findOne({ username })) {
+        throw new Error('Username already taken');
     }
 
     // Check verification: if otp provided, verify inline; else ensure an already-verified OTP exists
@@ -90,10 +88,11 @@ async function registerService(data: RegisterData): Promise<TokenResponse> {
 //Login Service
 async function loginService(data: LoginData): Promise<TokenResponse> {
     try {
-        const { email, password } = data;
+        const { password } = data;
+        const email = normalizeEmail(data.email);
 
-        // Find user by email
-        const user = await User.findOne({ email }).select('+password');
+        // Find user by email (không phân biệt hoa thường trong DB)
+        const user = await findUserByEmailCaseInsensitive(email).select('+password');
 
         if (!user) {
             throw new Error('Invalid email or password');
@@ -185,10 +184,10 @@ async function refreshTokenService(refreshToken: string): Promise<{ accessToken:
 // Forgot Password Service - Send OTP
 async function forgotPasswordService(data: ForgotPasswordData): Promise<{ message: string }> {
     try {
-        const { email } = data;
+        const email = normalizeEmail(data.email);
         
-        // Check if user exists
-        const user = await User.findOne({ email });
+        // Check if user exists (email không phân biệt hoa thường)
+        const user = await findUserByEmailCaseInsensitive(email);
         if (!user) {
             // Don't reveal if user exists for security
             return { message: 'If the email exists, a password reset code has been sent' };
@@ -210,9 +209,10 @@ async function forgotPasswordService(data: ForgotPasswordData): Promise<{ messag
 
 // Reset Password Service - Verify OTP and reset password (no transaction - standalone MongoDB)
 async function resetPasswordService(data: ResetPasswordData): Promise<{ message: string }> {
-    const { email, otp, newPassword } = data;
+    const { otp, newPassword } = data;
+    const email = normalizeEmail(data.email);
 
-    const user = await User.findOne({ email });
+    const user = await findUserByEmailCaseInsensitive(email);
     if (!user) {
         throw new Error('User not found');
     }

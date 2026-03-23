@@ -5,7 +5,7 @@ export type BudgetPeriodPreset = "weekly" | "monthly" | "yearly" | "custom";
 export interface BudgetResponse {
     id: string;
     amount: number;
-    /** Đơn vị tiền của hạn mức và spentAmount (ISO 4217). */
+    /** Đơn vị hiển thị = tiền user (User.currency); amount và spentAmount đã quy về đơn vị này khi khác với currency lưu trong DB. */
     currency: string;
     category: string;
     /** Tên category (populated) để hiển thị. */

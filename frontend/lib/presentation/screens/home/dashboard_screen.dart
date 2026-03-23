@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/app/home_data_notifier.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/theme/theme_palette.dart';
 import '../../../core/utils/currency_format.dart';
@@ -202,7 +203,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                             builder: (context) => const WalletsScreen(),
                                           ),
                                         );
-                                        _load();
+                                        if (mounted) {
+                                          getIt<HomeDataNotifier>().requestRefresh(force: true);
+                                        }
                                       },
                                     ),
                                     Divider(height: 1, color: p.borderColor),
@@ -269,7 +272,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       builder: (context) => BudgetDetailScreen(budget: budget),
                                     ),
                                   );
-                                  if (mounted) _load();
+                                  if (mounted) {
+                                    getIt<HomeDataNotifier>().requestRefresh(force: true);
+                                  }
                                 },
                               ),
                               const SizedBox(height: 6),
@@ -320,7 +325,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                                         TransactionFormScreen(transaction: t),
                                                   ),
                                                 );
-                                                if (ok == true && mounted) _load();
+                                                if (ok == true && mounted) {
+                                                  getIt<HomeDataNotifier>().requestRefresh(force: true);
+                                                }
                                               },
                                             ),
                                           const SizedBox(height: 8),

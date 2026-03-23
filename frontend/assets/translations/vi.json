@@ -11,6 +11,7 @@
   "create_account_subtitle": "Bắt đầu hành trình tài chính của bạn",
   "email": "Email",
   "hint_email": "Nhập email",
+  "email_readonly_hint": "Không thể đổi email tại đây",
   "password": "Mật khẩu",
   "hint_password": "Nhập mật khẩu",
   "remember_me": "Ghi nhớ đăng nhập",
@@ -37,6 +38,7 @@
   "nav_add": "Thêm",
   "nav_budget": "Ngân sách",
   "nav_profile": "Cá nhân",
+  "profile_section_account": "Tài khoản",
   "home_budget_at_risk": "Ngân sách gần hết hạn mức",
   "chart_tab_expense": "Chi",
   "chart_tab_income": "Thu",
@@ -147,6 +149,8 @@
   "budget_custom_dates_invalid": "Ngày kết thúc phải sau ngày bắt đầu.",
   "inactive": "Tắt",
   "amount": "Số tiền",
+  "amount_currency_hint": "Đơn vị: {ccy} (theo ví — đồng bộ với Cài đặt)",
+  "wallet_balance_currency_hint": "Đơn vị: {ccy}",
   "hint_amount": "Nhập số tiền",
   "invalid_number": "Số không hợp lệ",
   "category": "Danh mục",
@@ -240,5 +244,6 @@
 
   "request_otp": "Gửi mã OTP",
   "forgot_password_title": "Quên mật khẩu",
-  "forgot_password_hint": "Nhập email để nhận mã xác thực"
+  "forgot_password_hint": "Nhập email để nhận mã xác thực",
+  "session_expired_relogin": "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
 }

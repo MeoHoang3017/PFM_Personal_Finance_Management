@@ -11,6 +11,7 @@
   "create_account_subtitle": "Start your financial journey",
   "email": "Email",
   "hint_email": "Enter email",
+  "email_readonly_hint": "Email cannot be changed here",
   "password": "Password",
   "hint_password": "Enter password",
   "remember_me": "Remember me",
@@ -37,6 +38,7 @@
   "nav_add": "Add",
   "nav_budget": "Budget",
   "nav_profile": "Profile",
+  "profile_section_account": "Account",
   "home_budget_at_risk": "Budgets closest to the limit",
   "chart_tab_expense": "Expense",
   "chart_tab_income": "Income",
@@ -147,6 +149,8 @@
   "budget_custom_dates_invalid": "End date must be after start date.",
   "inactive": "Inactive",
   "amount": "Amount",
+  "amount_currency_hint": "Denomination: {ccy} (wallet currency — matches Settings)",
+  "wallet_balance_currency_hint": "Denomination: {ccy}",
   "hint_amount": "Enter amount",
   "invalid_number": "Invalid number",
   "category": "Category",
@@ -240,5 +244,6 @@
 
   "request_otp": "Send OTP",
   "forgot_password_title": "Forgot password",
-  "forgot_password_hint": "Enter your email to receive verification code"
+  "forgot_password_hint": "Enter your email to receive verification code",
+  "session_expired_relogin": "Your session has expired. Please sign in again."
 }

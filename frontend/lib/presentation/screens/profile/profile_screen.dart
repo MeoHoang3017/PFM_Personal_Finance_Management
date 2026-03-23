@@ -14,10 +14,12 @@ import '../categories/categories_screen.dart';
 import '../wallets/wallets_screen.dart';
 import 'change_password_screen.dart';
 import 'edit_profile_screen.dart';
-import 'settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  /// Sau khi lưu cài đặt / hồ sơ hoặc quay lại từ màn quản lý ví–danh mục — làm mới Tổng quan & giao dịch.
+  final VoidCallback? onHomeDataChanged;
+
+  const ProfileScreen({super.key, this.onHomeDataChanged});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -158,27 +160,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           context,
                           MaterialPageRoute(builder: (context) => EditProfileScreen(initialProfile: _profile)),
                         );
-                        if (result == true) _load();
-                      }),
-                      Divider(height: 1, color: p.borderColor),
-                      _profileTile(context, p, Icons.settings_outlined, 'settings'.tr(), () async {
-                        final result = await Navigator.push<bool>(
-                          context,
-                          MaterialPageRoute(builder: (context) => SettingsScreen(initialProfile: _profile)),
-                        );
-                        if (result == true) _load();
+                        if (result == true) {
+                          await _load();
+                          widget.onHomeDataChanged?.call();
+                        }
                       }),
                       Divider(height: 1, color: p.borderColor),
                       _profileTile(context, p, Icons.lock_outline, 'change_password'.tr(), () {
                         Navigator.push(context, MaterialPageRoute(builder: (context) => const ChangePasswordScreen()));
                       }),
                       Divider(height: 1, color: p.borderColor),
-                      _profileTile(context, p, Icons.category_outlined, 'manage_categories'.tr(), () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const CategoriesScreen()));
+                      _profileTile(context, p, Icons.category_outlined, 'manage_categories'.tr(), () async {
+                        await Navigator.push<void>(
+                          context,
+                          MaterialPageRoute(builder: (context) => const CategoriesScreen()),
+                        );
+                        if (mounted) widget.onHomeDataChanged?.call();
                       }),
                       Divider(height: 1, color: p.borderColor),
-                      _profileTile(context, p, Icons.account_balance_wallet_outlined, 'manage_wallets'.tr(), () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const WalletsScreen()));
+                      _profileTile(context, p, Icons.account_balance_wallet_outlined, 'manage_wallets'.tr(), () async {
+                        await Navigator.push<void>(
+                          context,
+                          MaterialPageRoute(builder: (context) => const WalletsScreen()),
+                        );
+                        if (mounted) widget.onHomeDataChanged?.call();
                       }),
                       Divider(height: 1, color: p.borderColor),
                       _profileTile(context, p, Icons.delete_outline, 'delete_account'.tr(), _confirmDeleteAccount, isDestructive: true),

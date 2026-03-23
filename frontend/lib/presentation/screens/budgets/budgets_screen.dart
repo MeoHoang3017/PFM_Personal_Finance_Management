@@ -7,7 +7,9 @@ import '../../../core/utils/app_toast.dart';
 import '../../../core/utils/currency_format.dart';
 import '../../../data/models/budget_models.dart';
 import '../../../data/services/budget_service.dart';
+import '../../widgets/budget_actual_limit_text.dart';
 import '../../widgets/budget_category_leading.dart';
+import '../../widgets/section_card.dart';
 import 'budget_detail_screen.dart';
 import 'budget_form_screen.dart';
 
@@ -236,66 +238,73 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                         final periodStr = '${b.startDate.day}/${b.startDate.month} – ${b.endDate.day}/${b.endDate.month}';
                                         final categoryLabel = b.categoryName?.isNotEmpty == true ? b.categoryName! : context.tr('budget_category_fallback');
                                         final suffix = ' ${currencySymbolFromCode(b.currency)}';
+                                        final metaParts = <String>[
+                                          if (!b.isActive) context.tr('inactive'),
+                                          _periodLabel(context, b.period),
+                                          periodStr,
+                                          b.currency,
+                                        ];
+                                        final metaLine = metaParts.join(' · ');
                                         return Padding(
                                           padding: const EdgeInsets.only(bottom: 10),
-                                          child: Material(
-                                            color: p.cardSurface,
-                                            borderRadius: BorderRadius.circular(14),
-                                            elevation: 0,
-                                            shadowColor: Colors.black.withValues(alpha: 0.08),
+                                          child: SectionCard(
+                                            padding: EdgeInsets.zero,
                                             child: InkWell(
                                               onTap: () => _openDetail(b),
-                                              borderRadius: BorderRadius.circular(14),
                                               child: Padding(
-                                                padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+                                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                                 child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  crossAxisAlignment: CrossAxisAlignment.stretch,
                                                   children: [
                                                     Row(
                                                       crossAxisAlignment: CrossAxisAlignment.start,
                                                       children: [
                                                         BudgetCategoryLeading(
-                                                          size: 42,
+                                                          size: 44,
                                                           categoryName: categoryLabel,
                                                           iconKey: b.categoryIcon,
                                                           colorHex: b.categoryColor,
-                                                          accentWhenNoColor: isOver ? p.expenseColor : p.primaryAction,
+                                                          accentWhenNoColor: budgetLeadingAccent(p, spent, limit),
                                                         ),
-                                                        const SizedBox(width: 12),
+                                                        const SizedBox(width: 14),
                                                         Expanded(
                                                           child: Column(
                                                             crossAxisAlignment: CrossAxisAlignment.start,
+                                                            mainAxisSize: MainAxisSize.min,
                                                             children: [
                                                               Text(
                                                                 categoryLabel,
-                                                                style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w800, fontSize: 17, height: 1.15),
-                                                                maxLines: 2,
+                                                                style: TextStyle(
+                                                                  color: p.primaryText,
+                                                                  fontSize: 15,
+                                                                  fontWeight: FontWeight.w600,
+                                                                ),
+                                                                maxLines: 1,
                                                                 overflow: TextOverflow.ellipsis,
                                                               ),
-                                                              const SizedBox(height: 4),
+                                                              const SizedBox(height: 2),
                                                               Text(
-                                                                '${_periodLabel(context, b.period)} · $periodStr · ${b.currency}',
-                                                                style: TextStyle(color: p.subtitleText, fontSize: 11, fontWeight: FontWeight.w500),
+                                                                metaLine,
+                                                                style: TextStyle(color: p.subtitleText, fontSize: 12),
+                                                                maxLines: 2,
+                                                                overflow: TextOverflow.ellipsis,
                                                               ),
                                                             ],
                                                           ),
                                                         ),
-                                                        if (!b.isActive)
-                                                          Padding(
-                                                            padding: const EdgeInsets.only(right: 4),
-                                                            child: Container(
-                                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                                              decoration: BoxDecoration(
-                                                                color: p.borderColor.withValues(alpha: 0.4),
-                                                                borderRadius: BorderRadius.circular(8),
-                                                              ),
-                                                              child: Text(context.tr('inactive'), style: TextStyle(color: p.subtitleText, fontSize: 10)),
-                                                            ),
-                                                          ),
+                                                        const SizedBox(width: 12),
+                                                        BudgetActualLimitText(
+                                                          spent: spent,
+                                                          limit: limit,
+                                                          suffix: suffix,
+                                                          compact: true,
+                                                          fontSize: 15,
+                                                          fontWeight: FontWeight.bold,
+                                                          textAlign: TextAlign.end,
+                                                          expandWidth: false,
+                                                        ),
                                                         PopupMenuButton<String>(
-                                                          icon: Icon(Icons.more_vert, color: p.iconMuted, size: 22),
-                                                          padding: EdgeInsets.zero,
-                                                          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                                          icon: Icon(Icons.more_vert, color: p.iconMuted),
                                                           onSelected: (v) {
                                                             if (v == 'edit') _openForm(b);
                                                             if (v == 'delete') _confirmDelete(b);
@@ -308,58 +317,13 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                                       ],
                                                     ),
                                                     const SizedBox(height: 10),
-                                                    Row(
-                                                      crossAxisAlignment: CrossAxisAlignment.end,
-                                                      children: [
-                                                        Expanded(
-                                                          child: Column(
-                                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                                            children: [
-                                                              Text(
-                                                                context.tr('budget_used'),
-                                                                style: TextStyle(color: p.subtitleText, fontSize: 11, fontWeight: FontWeight.w500),
-                                                              ),
-                                                              const SizedBox(height: 2),
-                                                              Text(
-                                                                formatCurrency(spent, suffix: suffix, compact: true),
-                                                                style: TextStyle(
-                                                                  color: p.expenseColor,
-                                                                  fontWeight: FontWeight.w800,
-                                                                  fontSize: 20,
-                                                                  letterSpacing: -0.3,
-                                                                ),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                        Column(
-                                                          crossAxisAlignment: CrossAxisAlignment.end,
-                                                          children: [
-                                                            Text(
-                                                              context.tr('budget_limit_label'),
-                                                              style: TextStyle(color: p.subtitleText, fontSize: 11, fontWeight: FontWeight.w500),
-                                                            ),
-                                                            const SizedBox(height: 2),
-                                                            Text(
-                                                              formatCurrency(limit, suffix: suffix, compact: true),
-                                                              style: TextStyle(
-                                                                color: p.primaryText,
-                                                                fontWeight: FontWeight.w700,
-                                                                fontSize: 16,
-                                                              ),
-                                                            ),
-                                                          ],
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    const SizedBox(height: 8),
                                                     ClipRRect(
                                                       borderRadius: BorderRadius.circular(4),
                                                       child: LinearProgressIndicator(
                                                         value: progress > 1.0 ? 1.0 : progress,
                                                         minHeight: 6,
                                                         backgroundColor: p.borderColor.withValues(alpha: 0.35),
-                                                        valueColor: AlwaysStoppedAnimation<Color>(isOver ? p.expenseColor : p.primaryAction),
+                                                        valueColor: AlwaysStoppedAnimation<Color>(budgetSpentVsLimitAccent(p, spent, limit)),
                                                       ),
                                                     ),
                                                     if (isOver) ...[
@@ -371,7 +335,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                                           Expanded(
                                                             child: Text(
                                                               context.tr('budget_over_limit'),
-                                                              style: TextStyle(color: p.expenseColor, fontWeight: FontWeight.w700, fontSize: 12),
+                                                              style: TextStyle(color: p.expenseColor, fontWeight: FontWeight.w500, fontSize: 12),
                                                             ),
                                                           ),
                                                         ],

@@ -5,6 +5,21 @@ enum BudgetPeriod { weekly, monthly, yearly, custom }
 
 extension BudgetPeriodExt on BudgetPeriod {
   String get value => name;
+
+  /// Key dùng với `easy_localization` (`period_week`, `period_month`, …).
+  String get localizationKey {
+    switch (this) {
+      case BudgetPeriod.weekly:
+        return 'period_week';
+      case BudgetPeriod.monthly:
+        return 'period_month';
+      case BudgetPeriod.yearly:
+        return 'period_year';
+      case BudgetPeriod.custom:
+        return 'period_custom';
+    }
+  }
+
   static BudgetPeriod fromString(String? s) {
     switch (s?.toLowerCase()) {
       case 'weekly':

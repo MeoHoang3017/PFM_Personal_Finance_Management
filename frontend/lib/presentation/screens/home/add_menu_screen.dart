@@ -8,34 +8,46 @@ import '../budgets/budget_form_screen.dart';
 
 /// Màn "Thêm" kiểu FinTracker: Thêm giao dịch, ví, ngân sách.
 class AddMenuScreen extends StatelessWidget {
-  const AddMenuScreen({super.key});
+  /// Sau khi lưu thành công (giao dịch / ví / ngân sách) — làm mới Home.
+  final VoidCallback? onDataChanged;
+
+  const AddMenuScreen({super.key, this.onDataChanged});
+
+  bool _notifyIfChanged(dynamic result) {
+    if (result == null || result == false) return false;
+    onDataChanged?.call();
+    return true;
+  }
 
   /// Form giao dịch / ví / ngân sách tự hiển thị toast khi lưu thành công — tránh trùng với màn Thêm.
   Future<void> _openTransaction(BuildContext context) async {
-    await Navigator.push<dynamic>(
+    final result = await Navigator.push<dynamic>(
       context,
       MaterialPageRoute(
         builder: (context) => const TransactionFormScreen(),
       ),
     );
+    _notifyIfChanged(result);
   }
 
   Future<void> _openWallet(BuildContext context) async {
-    await Navigator.push<bool>(
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => const WalletFormScreen(),
       ),
     );
+    _notifyIfChanged(result);
   }
 
   Future<void> _openBudget(BuildContext context) async {
-    await Navigator.push<bool>(
+    final result = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (context) => const BudgetFormScreen(),
       ),
     );
+    _notifyIfChanged(result);
   }
 
   @override

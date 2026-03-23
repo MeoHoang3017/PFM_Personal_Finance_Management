@@ -3,13 +3,19 @@ import { Pagination } from "../utils/pagination";
 export interface WalletResponse {
     id: string;
     name: string;
-    /** Balance in user's display currency (converted from wallet currency if needed). */
+    /**
+     * Số hiển thị: đã quy sang tiền user khi có tỷ giá; nếu thiếu FX thì là số dư sổ (ledger) và
+     * displayCurrency/currencySymbol khớp tiền ví (không còn nhầm 100 USD thành 100 ₫).
+     */
     balance: number;
     user: string;
-    /** User's display currency code (e.g. USD, VND) for frontend. */
+    /** Mã tiền dùng cho balance/symbol khi trả API (user hoặc ví nếu fallback). */
     displayCurrency: string;
-    /** Currency symbol for frontend (e.g. $, ₫). */
     currencySymbol: string;
+    /** Tiền tệ ledger của ví (đơn vị lưu balance trong DB). */
+    walletCurrency: string;
+    /** Số dư đúng theo walletCurrency (giống DB). */
+    balanceLedger: number;
     createdAt: Date;
     updatedAt: Date;
 }

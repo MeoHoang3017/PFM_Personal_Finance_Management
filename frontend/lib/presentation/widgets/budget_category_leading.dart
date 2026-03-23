@@ -22,7 +22,7 @@ class BudgetCategoryLeading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon = iconFromCategoryKey(iconKey) ?? iconForCategoryLabel(categoryName);
-    final bg = colorFromHex(colorHex)?.withValues(alpha: 0.2) ?? accentWhenNoColor.withValues(alpha: 0.15);
+    final bg = colorFromHex(colorHex)?.withValues(alpha: 0.12) ?? accentWhenNoColor.withValues(alpha: 0.12);
     final fg = colorFromHex(colorHex) ?? accentWhenNoColor;
 
     return Container(

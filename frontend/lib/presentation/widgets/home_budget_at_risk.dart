@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/theme_palette.dart';
 import '../../core/utils/currency_format.dart';
 import '../../data/models/budget_models.dart';
+import 'budget_actual_limit_text.dart';
 import 'budget_category_leading.dart';
 import 'section_card.dart';
 import 'section_header.dart';
@@ -75,7 +76,7 @@ class _BudgetAtRiskTile extends StatelessWidget {
     final ratio = limit > 0 ? (spent / limit).clamp(0.0, 2.0) : 0.0;
     final progress = ratio > 1.0 ? 1.0 : ratio;
     final isOver = budget.isOverBudget == true;
-    final barColor = isOver ? p.expenseColor : (ratio >= 0.85 ? const Color(0xFFE65100) : p.primaryAction);
+    final barColor = budgetLeadingAccent(p, spent, limit);
 
     final name = budget.categoryName?.isNotEmpty == true
         ? budget.categoryName!
@@ -96,7 +97,7 @@ class _BudgetAtRiskTile extends StatelessWidget {
                 categoryName: name,
                 iconKey: budget.categoryIcon,
                 colorHex: budget.categoryColor,
-                accentWhenNoColor: isOver ? p.expenseColor : p.primaryAction,
+                accentWhenNoColor: barColor,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -107,16 +108,30 @@ class _BudgetAtRiskTile extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
-                          child: Text(
-                            name,
-                            style: TextStyle(
-                              color: p.primaryText,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                              height: 1.2,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                style: TextStyle(
+                                  color: p.primaryText,
+                                  fontWeight: FontWeight.w500,
+                                  fontSize: 16,
+                                  height: 1.2,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                context.tr(budget.period.localizationKey),
+                                style: TextStyle(
+                                  color: p.subtitleText,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         if (isOver)
@@ -139,7 +154,7 @@ class _BudgetAtRiskTile extends StatelessWidget {
                             padding: const EdgeInsets.only(left: 6),
                             child: Text(
                               '${(ratio * 100).clamp(0, 999).toStringAsFixed(0)}%',
-                              style: TextStyle(color: barColor, fontWeight: FontWeight.w800, fontSize: 13),
+                              style: TextStyle(color: barColor, fontWeight: FontWeight.w500, fontSize: 13),
                             ),
                           ),
                       ],
@@ -155,29 +170,14 @@ class _BudgetAtRiskTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            formatCurrency(spent, suffix: suffix, compact: true),
-                            style: TextStyle(
-                              color: p.expenseColor,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          '/ ${formatCurrency(limit, suffix: suffix, compact: true)}',
-                          style: TextStyle(
-                            color: p.subtitleText,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
+                    BudgetActualLimitText(
+                      spent: spent,
+                      limit: limit,
+                      suffix: suffix,
+                      compact: true,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      textAlign: TextAlign.end,
                     ),
                   ],
                 ),

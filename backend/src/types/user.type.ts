@@ -32,7 +32,6 @@ export interface UpdateUserSettingsData {
 
 export interface UpdateProfileData {
     username?: string;
-    email?: string;
     currentPassword?: string;
     newPassword?: string;
     theme?: "light" | "dark";

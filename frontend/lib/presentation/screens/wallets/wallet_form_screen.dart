@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/theme/theme_palette.dart';
 import '../../../core/utils/app_toast.dart';
+import '../../../core/utils/currency_format.dart';
 import '../../../data/models/auth_models.dart';
 import '../../../data/models/wallet_models.dart';
 import '../../../data/services/auth_service.dart';
@@ -40,6 +41,11 @@ class _WalletFormScreenState extends State<WalletFormScreen> {
   Future<void> _loadUser() async {
     final user = await getIt<AuthService>().getStoredUser();
     if (mounted) setState(() => _user = user);
+  }
+
+  String get _balanceCurrencyLabel {
+    final c = (_user?.currency ?? 'USD').toUpperCase();
+    return '$c (${currencySymbolFromCode(c)})';
   }
 
   @override
@@ -137,6 +143,7 @@ class _WalletFormScreenState extends State<WalletFormScreen> {
                   decoration: InputDecoration(
                     labelText: 'wallet_balance'.tr(),
                     hintText: '0',
+                    suffixText: _balanceCurrencyLabel,
                     prefixIcon: Icon(Icons.attach_money, color: p.iconMuted),
                   ),
                   validator: (v) {
@@ -144,6 +151,11 @@ class _WalletFormScreenState extends State<WalletFormScreen> {
                     if (double.tryParse(v.replaceAll(',', '')) == null) return 'Số không hợp lệ';
                     return null;
                   },
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'wallet_balance_currency_hint'.tr(namedArgs: {'ccy': _balanceCurrencyLabel}),
+                  style: TextStyle(fontSize: 12, color: p.subtitleText),
                 ),
                 const SizedBox(height: 28),
                 SizedBox(

@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { sendOtpService, verifyOtpService } from "../services/otp.service";
+import { forgotPasswordService } from "../services/auth.service";
+import { normalizeEmail } from "../utils/emailNormalize";
 import { SuccessResponse, ErrorResponse } from "../constants/Response";
 import { sendResponse } from "../utils/response";
 import { createError } from "../middleware/error.middleware";
@@ -9,7 +11,8 @@ import { createError } from "../middleware/error.middleware";
  */
 export const sendRegisterOtp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { email } = req.body;
+        const { email: raw } = req.body;
+        const email = typeof raw === "string" ? normalizeEmail(raw) : "";
 
         if (!email) {
             sendResponse(res, ErrorResponse.MISSING_FIELDS(['email']));
@@ -24,18 +27,19 @@ export const sendRegisterOtp = async (req: Request, res: Response, next: NextFun
 };
 
 /**
- * Send OTP for Password Reset
+ * Send OTP for Password Reset — cùng logic POST /auth/forgot-password (chặn tài khoản chỉ Google, không lộ email).
  */
 export const sendForgotPasswordOtp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { email } = req.body;
+        const { email: raw } = req.body;
+        const email = typeof raw === "string" ? normalizeEmail(raw) : "";
 
         if (!email) {
             sendResponse(res, ErrorResponse.MISSING_FIELDS(['email']));
             return;
         }
 
-        const result = await sendOtpService(email, 'forgot-password');
+        const result = await forgotPasswordService({ email });
         sendResponse(res, SuccessResponse.CUSTOM(200, result.message, null));
     } catch (error: any) {
         next(createError(error.message || 'Failed to send OTP', 400));
@@ -47,7 +51,8 @@ export const sendForgotPasswordOtp = async (req: Request, res: Response, next: N
  */
 export const verifyOtp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-        const { email, otp, type = 'register' } = req.body;
+        const { email: raw, otp, type = 'register' } = req.body;
+        const email = typeof raw === "string" ? normalizeEmail(raw) : "";
 
         if (!email || !otp) {
             sendResponse(res, ErrorResponse.MISSING_FIELDS(['email', 'otp']));

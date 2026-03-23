@@ -1,8 +1,11 @@
 import 'package:dio/dio.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../constants/app_constants.dart';
 import '../di/injection.dart';
+import '../router/app_router.dart';
+import '../utils/app_toast.dart';
 import '../../data/services/auth_service.dart';
 
 class ApiClient {
@@ -11,6 +14,7 @@ class ApiClient {
 
   /// Tránh gọi refresh đồng thời khi nhiều request cùng 401.
   Future<bool>? _refreshFuture;
+  bool _isHandlingAuthFailure = false;
 
   ApiClient({String? baseUrl}) {
     final base = baseUrl ?? AppConstants.defaultApiBaseUrl;
@@ -73,6 +77,7 @@ class ApiClient {
             }
             final auth = getIt<AuthService>();
             await auth.clearTokensOnly();
+            await _handleAuthFailure();
             return handler.next(e);
           }
 
@@ -91,9 +96,25 @@ class ApiClient {
 
           final auth = getIt<AuthService>();
           await auth.clearTokensOnly();
+          await _handleAuthFailure();
           return handler.next(e);
         },
       ),
     );
+  }
+
+  Future<void> _handleAuthFailure() async {
+    if (_isHandlingAuthFailure) return;
+    _isHandlingAuthFailure = true;
+    try {
+      final context = rootNavigatorKey.currentContext;
+      AppToast.showError(
+        context,
+        'session_expired_relogin'.tr(),
+      );
+      createAppRouter().go('/');
+    } finally {
+      _isHandlingAuthFailure = false;
+    }
   }
 }

@@ -9,6 +9,10 @@ class Wallet {
   final String? displayCurrency;
   /// Currency symbol for display (e.g. $, ₫).
   final String? currencySymbol;
+  /// Ledger currency in DB (wallet's native currency).
+  final String? walletCurrency;
+  /// Balance in ledger currency (same as DB).
+  final double? balanceLedger;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -19,6 +23,8 @@ class Wallet {
     required this.user,
     this.displayCurrency,
     this.currencySymbol,
+    this.walletCurrency,
+    this.balanceLedger,
     this.createdAt,
     this.updatedAt,
   });
@@ -34,6 +40,8 @@ class Wallet {
       user: json['user'] as String? ?? '',
       displayCurrency: json['displayCurrency'] as String?,
       currencySymbol: json['currencySymbol'] as String?,
+      walletCurrency: json['walletCurrency'] as String?,
+      balanceLedger: (json['balanceLedger'] as num?)?.toDouble(),
       createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'] as String) : null,
       updatedAt: json['updatedAt'] != null ? DateTime.tryParse(json['updatedAt'] as String) : null,
     );

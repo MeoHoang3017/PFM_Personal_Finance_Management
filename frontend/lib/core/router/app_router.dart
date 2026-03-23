@@ -11,8 +11,12 @@ import '../../presentation/screens/auth/forgot_password_screen.dart';
 import '../../presentation/screens/auth/reset_password_screen.dart';
 import '../../presentation/screens/home/home_screen.dart';
 
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+GoRouter? _appRouter;
+
 GoRouter createAppRouter() {
-  return GoRouter(
+  return _appRouter ??= GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     redirect: (context, state) async {
       final auth = getIt<AuthService>();

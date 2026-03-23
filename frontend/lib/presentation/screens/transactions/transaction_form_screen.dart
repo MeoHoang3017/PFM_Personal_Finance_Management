@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
 import '../../../core/utils/app_toast.dart';
+import '../../../core/utils/currency_format.dart';
 import '../../../data/models/auth_models.dart';
 import '../../../data/models/category_models.dart';
 import '../../../data/models/transaction_models.dart';
@@ -39,6 +40,12 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
   bool _loadingData = true;
   String? _errorMessage;
   UserInfo? _user;
+
+  /// Đơn vị ghi sổ khớp ví / Cài đặt (backend đồng bộ tiền tệ ví khi đổi preference).
+  String get _amountCurrencyLabel {
+    final c = (_user?.currency ?? 'USD').toUpperCase();
+    return '$c (${currencySymbolFromCode(c)})';
+  }
 
   CategoryType? _categoryTypeFor(TransactionType t) {
     switch (t) {
@@ -316,6 +323,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                   decoration: InputDecoration(
                     labelText: 'amount'.tr(),
                     border: const OutlineInputBorder(),
+                    suffixText: _amountCurrencyLabel,
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'hint_amount'.tr();
@@ -323,6 +331,11 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                     return null;
                   },
                   readOnly: isExchangeEdit,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'amount_currency_hint'.tr(namedArgs: {'ccy': _amountCurrencyLabel}),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.outline),
                 ),
                 const SizedBox(height: 16),
                 if (_type == TransactionType.exchange && !isEdit) ...[

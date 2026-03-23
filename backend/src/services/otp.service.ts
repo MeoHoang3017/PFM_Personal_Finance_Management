@@ -1,5 +1,6 @@
 import Otp from "../models/otp.model";
 import { sendMail } from "../utils/mailer";
+import { normalizeEmail } from "../utils/emailNormalize";
 
 // Helper to generate 6-digit OTP
 function generateOtp(): string {
@@ -12,6 +13,7 @@ async function sendOtpService(
     type: 'register' | 'forgot-password' = 'register'
 ): Promise<{ message: string }> {
     try {
+        email = normalizeEmail(email);
         const otpCode = generateOtp();
         const expiresAt = new Date(
             Date.now() + (parseInt(process.env.OTP_EXPIRES_MINUTES || '10') * 60 * 1000)
@@ -49,6 +51,7 @@ async function verifyOtpService(
     type: 'register' | 'forgot-password' = 'register'
 ): Promise<{ message: string; verified: boolean }> {
     try {
+        email = normalizeEmail(email);
         const record = await Otp.findOne({ email, type });
 
         if (!record) {
@@ -78,6 +81,7 @@ async function checkOtpVerifiedService(
     type: 'register' | 'forgot-password' = 'register'
 ): Promise<boolean> {
     try {
+        email = normalizeEmail(email);
         const record = await Otp.findOne({ email, type });
         
         if (!record) {
@@ -100,6 +104,7 @@ async function deleteOtpService(
     type: 'register' | 'forgot-password' = 'register'
 ): Promise<{ message: string }> {
     try {
+        email = normalizeEmail(email);
         await Otp.deleteMany({ email, type });
         return { message: 'OTP deleted successfully' };
     } catch (error) {

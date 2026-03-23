@@ -60,7 +60,8 @@ function formatTransactionResponse(
     const base: TransactionResponse = {
         id: transaction._id.toString(),
         amount: displayAmount,
-        currency: (transaction.currency as string) || displayCurrency,
+        // currency = user preference only (matches displayCurrency); not wallet/original ledger code.
+        currency: displayCurrency,
         type: transaction.type,
         category: categoryId,
         ...(categoryName != null ? { categoryName } : {}),
@@ -84,33 +85,59 @@ function formatTransactionResponse(
 
 async function _getDisplayCurrencyAndSymbol(userId: string): Promise<{ displayCurrency: string; currencySymbol: string }> {
     const user = await User.findById(userId).select('currency').lean();
-    const displayCurrency = (user?.currency as string) || 'USD';
+    const raw = ((user?.currency as string) || 'USD').trim();
+    const displayCurrency = raw.toUpperCase() || 'USD';
     const currencyDoc = await getCurrencyByCodeService(displayCurrency);
     const currencySymbol = currencyDoc?.symbol ?? displayCurrency;
     return { displayCurrency, currencySymbol };
 }
 
-async function _getUserCurrency(userId: string): Promise<string> {
-    const user = await User.findById(userId).select('currency').lean();
-    return ((user?.currency as string) || 'USD').toUpperCase();
+/** Tiền tệ ví (đơn vị số dư). */
+function walletCurrencyCode(wallet: { currency?: string } | null | undefined): string {
+    return ((wallet?.currency as string) || "USD").toUpperCase();
 }
 
-/** Convert transaction amount to user's display currency and format response. */
+async function getUserPreferredCurrency(userId: string): Promise<string> {
+    const user = await User.findById(userId).select("currency").lean();
+    return String((user?.currency as string) || "USD").trim().toUpperCase() || "USD";
+}
+
+/**
+ * Quy đổi số tiền từ đơn vị đã lưu trên giao dịch (user preference tại thời điểm ghi) sang đơn vị ví để cộng/trừ balance.
+ * Dữ liệu cũ: currency trùng ví → amount đã là đơn vị ví (tc === wc → không đổi).
+ */
+async function amountInWalletCurrency(
+    amount: number,
+    txnCurrency: string,
+    walletCurrency: string,
+    date?: Date
+): Promise<number | null> {
+    const tc = txnCurrency.trim().toUpperCase() || "USD";
+    const wc = walletCurrency.trim().toUpperCase() || "USD";
+    if (tc === wc) return amount;
+    return convertCurrency(amount, tc, wc, date);
+}
+
+/** Quy đổi từ currency đã lưu trên document → currency hiển thị hiện tại của user. */
 async function _formatTransactionWithConversion(transaction: any, userId: string): Promise<TransactionResponse> {
-    const walletCurrency =
-        (transaction.wallet && typeof transaction.wallet === 'object' && transaction.wallet.currency)
-            ? transaction.wallet.currency
-            : 'USD';
+    const rawStored = (transaction.currency as string) || "USD";
+    const storedCurrency = rawStored.trim().toUpperCase() || "USD";
     const { displayCurrency, currencySymbol } = await _getDisplayCurrencyAndSymbol(userId);
     let displayAmount = transaction.amount ?? 0;
-    if (walletCurrency !== displayCurrency) {
+    if (storedCurrency !== displayCurrency) {
         const converted = await convertCurrency(
             transaction.amount,
-            walletCurrency,
+            storedCurrency,
             displayCurrency,
             transaction.date
         );
-        if (converted !== null) displayAmount = converted;
+        if (converted !== null) {
+            displayAmount = converted;
+        } else {
+            console.warn(
+                `[Transaction] FX missing: ${storedCurrency} → ${displayCurrency} (tx ${transaction._id}). Amount left in stored currency.`
+            );
+        }
     }
     return formatTransactionResponse(transaction, displayAmount, displayCurrency, currencySymbol);
 }
@@ -152,19 +179,23 @@ async function getUserTransactionsService(
         const { displayCurrency, currencySymbol } = await _getDisplayCurrencyAndSymbol(filter.user);
         const formattedTransactions: TransactionResponse[] = [];
         for (const tx of transactions) {
-            const walletCurrency =
-                (tx.wallet && typeof tx.wallet === 'object' && (tx.wallet as any).currency)
-                    ? (tx.wallet as any).currency
-                    : 'USD';
+            const rawStored = (tx as any).currency || "USD";
+            const storedCurrency = String(rawStored).trim().toUpperCase() || "USD";
             let displayAmount = (tx as any).amount ?? 0;
-            if (walletCurrency !== displayCurrency) {
+            if (storedCurrency !== displayCurrency) {
                 const converted = await convertCurrency(
                     (tx as any).amount,
-                    walletCurrency,
+                    storedCurrency,
                     displayCurrency,
                     (tx as any).date
                 );
-                if (converted !== null) displayAmount = converted;
+                if (converted !== null) {
+                    displayAmount = converted;
+                } else {
+                    console.warn(
+                        `[Transaction] FX missing: ${storedCurrency} → ${displayCurrency} (tx ${(tx as any)._id}). Amount left in stored currency.`
+                    );
+                }
             }
             formattedTransactions.push(
                 formatTransactionResponse(tx, displayAmount, displayCurrency, currencySymbol)
@@ -204,13 +235,18 @@ async function _createWithSession(data: CreateTransactionData): Promise<Transact
     try {
         const wallet = await Wallet.findById(data.wallet).session(session);
         if (!wallet) throw new Error('Wallet not found');
-        if (data.type === 'income') wallet.balance += data.amount;
-        else if (data.type === 'expense') wallet.balance -= data.amount;
+        const userCurrency = await getUserPreferredCurrency(data.user);
+        const walletCur = walletCurrencyCode(wallet);
+        const ledgerDelta = await amountInWalletCurrency(data.amount, userCurrency, walletCur, data.date);
+        if (ledgerDelta === null) {
+            throw new Error('Cannot convert amount from user currency to wallet currency; check exchange rates');
+        }
+        if (data.type === 'income') wallet.balance += ledgerDelta;
+        else if (data.type === 'expense') wallet.balance -= ledgerDelta;
         await wallet.save({ session });
-        const txCurrency = await _getUserCurrency(data.user);
         const transaction = new Transaction({
             amount: data.amount,
-            currency: txCurrency,
+            currency: userCurrency,
             type: data.type,
             category: new mongoose.Types.ObjectId(data.category),
             date: data.date,
@@ -238,14 +274,19 @@ async function _createNoSession(data: CreateTransactionData): Promise<Transactio
     const wallet = await Wallet.findById(data.wallet);
     if (!wallet) throw new Error('Wallet not found');
     const previousBalance = wallet.balance;
-    if (data.type === 'income') wallet.balance += data.amount;
-    else if (data.type === 'expense') wallet.balance -= data.amount;
+    const userCurrency = await getUserPreferredCurrency(data.user);
+    const walletCur = walletCurrencyCode(wallet);
+    const ledgerDelta = await amountInWalletCurrency(data.amount, userCurrency, walletCur, data.date);
+    if (ledgerDelta === null) {
+        throw new Error('Cannot convert amount from user currency to wallet currency; check exchange rates');
+    }
+    if (data.type === 'income') wallet.balance += ledgerDelta;
+    else if (data.type === 'expense') wallet.balance -= ledgerDelta;
     await wallet.save();
     try {
-        const txCurrency = await _getUserCurrency(data.user);
         const transaction = new Transaction({
             amount: data.amount,
-            currency: txCurrency,
+            currency: userCurrency,
             type: data.type,
             category: new mongoose.Types.ObjectId(data.category),
             date: data.date,
@@ -509,39 +550,63 @@ async function _updateWithSession(transactionId: string, data: UpdateTransaction
         if (transaction.type === 'exchange') {
             throw new Error('Exchange transactions cannot be updated; delete the transfer to reverse balances');
         }
+        const userCur = await getUserPreferredCurrency(transaction.user.toString());
         const needsWalletUpdate = data.amount !== undefined || data.type !== undefined || data.wallet !== undefined;
         if (needsWalletUpdate) {
             const oldWallet = await Wallet.findById(transaction.wallet).session(session);
             if (oldWallet) {
-                if (transaction.type === 'income') oldWallet.balance -= transaction.amount;
-                else if (transaction.type === 'expense') oldWallet.balance += transaction.amount;
+                const oldWc = walletCurrencyCode(oldWallet);
+                const oldLeg = await amountInWalletCurrency(
+                    transaction.amount,
+                    String(transaction.currency || "USD"),
+                    oldWc,
+                    transaction.date
+                );
+                if (oldLeg === null) {
+                    throw new Error('Cannot update transaction: missing exchange rate to reverse wallet balance');
+                }
+                if (transaction.type === 'income') oldWallet.balance -= oldLeg;
+                else if (transaction.type === 'expense') oldWallet.balance += oldLeg;
                 await oldWallet.save({ session });
             }
             const walletId = data.wallet !== undefined ? data.wallet : transaction.wallet.toString();
             const newWallet = await Wallet.findById(walletId).session(session);
             if (!newWallet) throw new Error('Wallet not found');
-            const newAmount = data.amount !== undefined ? data.amount : transaction.amount;
+            const newAmountUser = data.amount !== undefined ? data.amount : transaction.amount;
+            const newTxnCurrency =
+                data.amount !== undefined
+                    ? userCur
+                    : String(transaction.currency || "USD").trim().toUpperCase() || "USD";
             const newType = data.type !== undefined ? data.type : transaction.type;
-            if (newType === 'income') newWallet.balance += newAmount;
-            else if (newType === 'expense') newWallet.balance -= newAmount;
+            const newWc = walletCurrencyCode(newWallet);
+            const effDate = data.date !== undefined ? data.date : transaction.date;
+            const newLeg = await amountInWalletCurrency(newAmountUser, newTxnCurrency, newWc, effDate);
+            if (newLeg === null) {
+                throw new Error('Cannot update transaction: missing exchange rate for wallet');
+            }
+            if (newType === 'income') newWallet.balance += newLeg;
+            else if (newType === 'expense') newWallet.balance -= newLeg;
             await newWallet.save({ session });
         }
         const update: any = {};
-        if (data.amount !== undefined) update.amount = data.amount;
+        if (data.amount !== undefined) {
+            update.amount = data.amount;
+            update.currency = userCur;
+        }
         if (data.type !== undefined) update.type = data.type;
         if (data.category !== undefined) update.category = new mongoose.Types.ObjectId(data.category);
-            if (data.date !== undefined) update.date = data.date;
-            if (data.description !== undefined) update.description = data.description;
-            if (data.notes !== undefined) update.notes = data.notes;
-            if (data.wallet !== undefined) update.wallet = new mongoose.Types.ObjectId(data.wallet);
+        if (data.date !== undefined) update.date = data.date;
+        if (data.description !== undefined) update.description = data.description;
+        if (data.notes !== undefined) update.notes = data.notes;
+        if (data.wallet !== undefined) update.wallet = new mongoose.Types.ObjectId(data.wallet);
         const updated = await Transaction.findByIdAndUpdate(transactionId, update, { new: true, session });
-            if (!updated) throw new Error('Transaction not found');
-            await session.commitTransaction();
-            const populated = await Transaction.findById(updated._id)
-                .populate('category', 'name')
-                .populate('wallet', 'currency')
-                .lean();
-            return _formatTransactionWithConversion(populated ?? updated, updated.user.toString());
+        if (!updated) throw new Error('Transaction not found');
+        await session.commitTransaction();
+        const populated = await Transaction.findById(updated._id)
+            .populate('category', 'name')
+            .populate('wallet', 'currency')
+            .lean();
+        return _formatTransactionWithConversion(populated ?? updated, updated.user.toString());
     } catch (error) {
         await session.abortTransaction().catch(() => {});
         throw error;
@@ -580,6 +645,7 @@ async function _updateNoSession(transactionId: string, data: UpdateTransactionDa
         throw new Error('Exchange transactions cannot be updated; delete the transfer to reverse balances');
     }
 
+    const userCur = await getUserPreferredCurrency(transaction.user.toString());
     const needsWalletUpdate = data.amount !== undefined || data.type !== undefined || data.wallet !== undefined;
     let oldWallet: IWalletDoc | null = null;
     let newWallet: IWalletDoc | null = null;
@@ -590,10 +656,20 @@ async function _updateNoSession(transactionId: string, data: UpdateTransactionDa
         oldWallet = await Wallet.findById(transaction.wallet) as IWalletDoc | null;
         if (oldWallet) {
             oldWalletBalanceBefore.push(oldWallet.balance);
+            const oldWc = walletCurrencyCode(oldWallet);
+            const oldLeg = await amountInWalletCurrency(
+                transaction.amount,
+                String(transaction.currency || 'USD'),
+                oldWc,
+                transaction.date
+            );
+            if (oldLeg === null) {
+                throw new Error('Cannot update transaction: missing exchange rate to reverse wallet balance');
+            }
             if (transaction.type === 'income') {
-                oldWallet.balance -= transaction.amount;
+                oldWallet.balance -= oldLeg;
             } else if (transaction.type === 'expense') {
-                oldWallet.balance += transaction.amount;
+                oldWallet.balance += oldLeg;
             }
             await oldWallet.save();
         }
@@ -609,19 +685,37 @@ async function _updateNoSession(transactionId: string, data: UpdateTransactionDa
             throw new Error('Wallet not found');
         }
         newWalletBalanceBefore.push(newWallet.balance);
-        const newAmount = data.amount !== undefined ? data.amount : transaction.amount;
+        const newAmountUser = data.amount !== undefined ? data.amount : transaction.amount;
+        const newTxnCurrency =
+            data.amount !== undefined
+                ? userCur
+                : String(transaction.currency || 'USD').trim().toUpperCase() || 'USD';
         const newType = data.type !== undefined ? data.type : transaction.type;
+        const newWc = walletCurrencyCode(newWallet);
+        const effDate = data.date !== undefined ? data.date : transaction.date;
+        const newLeg = await amountInWalletCurrency(newAmountUser, newTxnCurrency, newWc, effDate);
+        if (newLeg === null) {
+            const prevBalance = oldWalletBalanceBefore[0];
+            if (oldWallet && prevBalance !== undefined) {
+                oldWallet.balance = prevBalance;
+                await oldWallet.save();
+            }
+            throw new Error('Cannot update transaction: missing exchange rate for wallet');
+        }
         if (newType === 'income') {
-            newWallet.balance += newAmount;
+            newWallet.balance += newLeg;
         } else if (newType === 'expense') {
-            newWallet.balance -= newAmount;
+            newWallet.balance -= newLeg;
         }
         await newWallet.save();
     }
 
     try {
         const update: any = {};
-        if (data.amount !== undefined) update.amount = data.amount;
+        if (data.amount !== undefined) {
+            update.amount = data.amount;
+            update.currency = userCur;
+        }
         if (data.type !== undefined) update.type = data.type;
         if (data.category !== undefined) update.category = new mongoose.Types.ObjectId(data.category);
         if (data.date !== undefined) update.date = data.date;
@@ -670,8 +764,18 @@ async function _deleteWithSession(transactionId: string): Promise<{ message: str
         }
         const wallet = await Wallet.findById(transaction.wallet).session(session);
         if (wallet) {
-            if (transaction.type === 'income') wallet.balance -= transaction.amount;
-            else if (transaction.type === 'expense') wallet.balance += transaction.amount;
+            const wc = walletCurrencyCode(wallet);
+            const leg = await amountInWalletCurrency(
+                transaction.amount,
+                String(transaction.currency || "USD"),
+                wc,
+                transaction.date
+            );
+            if (leg === null) {
+                throw new Error("Cannot delete transaction: missing exchange rate to reverse wallet balance");
+            }
+            if (transaction.type === 'income') wallet.balance -= leg;
+            else if (transaction.type === 'expense') wallet.balance += leg;
             await wallet.save({ session });
         }
         await Transaction.findByIdAndDelete(transactionId, { session });
@@ -698,10 +802,20 @@ async function _deleteNoSession(transactionId: string): Promise<{ message: strin
     let previousBalance: number | null = null;
     if (wallet) {
         previousBalance = wallet.balance;
+        const wc = walletCurrencyCode(wallet);
+        const leg = await amountInWalletCurrency(
+            transaction.amount,
+            String(transaction.currency || "USD"),
+            wc,
+            transaction.date
+        );
+        if (leg === null) {
+            throw new Error("Cannot delete transaction: missing exchange rate to reverse wallet balance");
+        }
         if (transaction.type === 'income') {
-            wallet.balance -= transaction.amount;
+            wallet.balance -= leg;
         } else if (transaction.type === 'expense') {
-            wallet.balance += transaction.amount;
+            wallet.balance += leg;
         }
         await wallet.save();
     }
@@ -749,12 +863,26 @@ async function _duplicateWithSession(transactionId: string): Promise<Transaction
         }
         const wallet = await Wallet.findById(original.wallet).session(session);
         if (!wallet) throw new Error('Wallet not found');
-        if (original.type === 'income') wallet.balance += original.amount;
-        else if (original.type === 'expense') wallet.balance -= original.amount;
+        const wc = walletCurrencyCode(wallet);
+        const dupLeg = await amountInWalletCurrency(
+            original.amount,
+            String((original as any).currency || "USD"),
+            wc,
+            new Date()
+        );
+        if (dupLeg === null) {
+            throw new Error("Cannot duplicate transaction: missing exchange rate for wallet");
+        }
+        if (original.type === 'income') wallet.balance += dupLeg;
+        else if (original.type === 'expense') wallet.balance -= dupLeg;
         await wallet.save({ session });
+        const dupCurrency =
+            (original as any).currency != null && String((original as any).currency).trim() !== ""
+                ? String((original as any).currency).trim().toUpperCase()
+                : await getUserPreferredCurrency(original.user.toString());
         const duplicated = new Transaction({
             amount: original.amount,
-            currency: (original as any).currency || (await _getUserCurrency(original.user.toString())),
+            currency: dupCurrency,
             type: original.type,
             category: original.category,
             date: new Date(),
@@ -791,16 +919,30 @@ async function _duplicateNoSession(transactionId: string): Promise<TransactionRe
         throw new Error('Wallet not found');
     }
     const previousBalance = wallet.balance;
+    const wc = walletCurrencyCode(wallet);
+    const dupLeg = await amountInWalletCurrency(
+        original.amount,
+        String((original as any).currency || "USD"),
+        wc,
+        new Date()
+    );
+    if (dupLeg === null) {
+        throw new Error("Cannot duplicate transaction: missing exchange rate for wallet");
+    }
     if (original.type === 'income') {
-        wallet.balance += original.amount;
+        wallet.balance += dupLeg;
     } else if (original.type === 'expense') {
-        wallet.balance -= original.amount;
+        wallet.balance -= dupLeg;
     }
     await wallet.save();
     try {
+        const dupCurrency =
+            (original as any).currency != null && String((original as any).currency).trim() !== ""
+                ? String((original as any).currency).trim().toUpperCase()
+                : await getUserPreferredCurrency(original.user.toString());
         const duplicated = new Transaction({
             amount: original.amount,
-            currency: (original as any).currency || (await _getUserCurrency(original.user.toString())),
+            currency: dupCurrency,
             type: original.type,
             category: original.category,
             date: new Date(),

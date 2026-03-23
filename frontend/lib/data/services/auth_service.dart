@@ -197,12 +197,13 @@ class AuthService {
     await _storage.delete(key: AppConstants.storageKeyUser);
   }
 
-  /// Gửi OTP quên mật khẩu (POST /otp/send-forgot-password-otp)
+  /// Gửi OTP quên mật khẩu (POST /auth/forgot-password — chặn tài khoản chỉ Google, đồng bộ backend)
   Future<ApiResponse<void>> requestForgotPasswordOtp(String email) async {
     try {
+      final normalized = email.trim().toLowerCase();
       await _api.dio.post(
-        '/otp/send-forgot-password-otp',
-        data: {'email': email},
+        '/auth/forgot-password',
+        data: {'email': normalized},
       );
       return ApiResponse(code: 200, message: 'OK', result: null);
     } on DioException catch (e) {
@@ -220,7 +221,11 @@ class AuthService {
     try {
       await _api.dio.post(
         '/auth/reset-password',
-        data: {'email': email, 'otp': otp, 'newPassword': newPassword},
+        data: {
+          'email': email.trim().toLowerCase(),
+          'otp': otp.trim(),
+          'newPassword': newPassword,
+        },
       );
       return ApiResponse(code: 200, message: 'OK', result: null);
     } on DioException catch (e) {

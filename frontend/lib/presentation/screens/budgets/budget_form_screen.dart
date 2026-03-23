@@ -211,7 +211,7 @@ class _BudgetFormScreenState extends State<BudgetFormScreen> {
                   decoration: InputDecoration(
                     labelText: context.tr('amount'),
                     hintText: '0',
-                    suffixText: currencySymbolFromCode(_currency),
+                    suffixText: '$_currency ${currencySymbolFromCode(_currency)}',
                     filled: true,
                     fillColor: p.cardSurface,
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: p.borderColor)),

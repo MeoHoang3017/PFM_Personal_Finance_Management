@@ -36,6 +36,18 @@ class _TransactionsScreenState extends State<TransactionsScreen>
   late TabController _tabController;
   final List<DateTime> _months = last12MonthsFromNow();
   int _lastFetchedTabIndex = -1;
+  DateTime? _lastNetworkFetchAt;
+
+  /// Gọi từ Home: sau CRUD, đổi tab, hoặc [HomeDataNotifier]. [force] bỏ qua debounce ngắn.
+  void refresh({bool force = false}) {
+    if (!force &&
+        _lastNetworkFetchAt != null &&
+        DateTime.now().difference(_lastNetworkFetchAt!) < const Duration(milliseconds: 500)) {
+      return;
+    }
+    _lastFetchedTabIndex = -1;
+    _loadForCurrentTab();
+  }
 
   _FilterType _filterType = _FilterType.all;
   String? _selectedCategoryId; // null = Tất cả danh mục
@@ -103,6 +115,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
       }
       if (!mounted) return;
       setState(() {
+        _lastNetworkFetchAt = DateTime.now();
         _transactions = txRes.isSuccess && txRes.result != null ? txRes.result!.data : [];
         _categories = catRes.isSuccess && catRes.result != null ? catRes.result! : [];
         _loading = false;
