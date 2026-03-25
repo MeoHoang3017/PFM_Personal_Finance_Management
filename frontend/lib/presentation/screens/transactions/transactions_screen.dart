@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/theme/theme_palette.dart';
 import '../../../core/utils/app_toast.dart';
+import '../../../core/utils/category_icon.dart';
 import '../../../core/utils/currency_format.dart';
 import '../../../core/utils/monthly_report_helper.dart';
 import '../../../data/models/category_models.dart';
@@ -437,7 +438,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        formatCurrency(income, suffix: suffix, compact: true),
+                        formatCurrencyAggregates(income, suffix: suffix),
                         style: TextStyle(color: p.incomeColor, fontWeight: FontWeight.w600, fontSize: 12),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -453,7 +454,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                       Text(context.tr('month_expense'), style: TextStyle(color: p.subtitleText, fontSize: 10)),
                       const SizedBox(height: 2),
                       Text(
-                        formatCurrency(expense, suffix: suffix, compact: true),
+                        formatCurrencyAggregates(expense, suffix: suffix),
                         style: TextStyle(color: p.expenseColor, fontWeight: FontWeight.w600, fontSize: 12),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -469,7 +470,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                       Text(context.tr('month_net'), style: TextStyle(color: p.subtitleText, fontSize: 10)),
                       const SizedBox(height: 2),
                       Text(
-                        formatCurrency(net, suffix: suffix, compact: true),
+                        formatCurrencyAggregates(net, suffix: suffix),
                         style: TextStyle(
                           color: net >= 0 ? p.incomeColor : p.expenseColor,
                           fontWeight: FontWeight.w600,
@@ -544,11 +545,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
-                          t.type == TransactionType.income
-                              ? Icons.arrow_downward
-                              : t.type == TransactionType.exchange
-                                  ? Icons.swap_horiz
-                                  : Icons.arrow_upward,
+                          iconForTransaction(t),
                           size: 22,
                           color: typeColor,
                         ),
@@ -575,7 +572,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        formatCurrency(t.amount, suffix: t.currencySuffix),
+                        formatCurrencyRows(t.amount, suffix: t.currencySuffix),
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: typeColor),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,

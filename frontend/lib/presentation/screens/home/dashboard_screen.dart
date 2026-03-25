@@ -97,7 +97,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   String get _currencySuffix => _wallets.isNotEmpty ? _wallets.first.currencySuffix : ' ₫';
-  String _formatBalance(double value) => formatCurrency(value, suffix: _currencySuffix, compact: true);
+  String _formatBalance(double value) => formatCurrencyAggregates(value, suffix: _currencySuffix);
 
   /// Ba ngân sách đang hoạt động có tỷ lệ đã chi / hạn mức cao nhất.
   static List<BudgetModel> _topBudgetsNearLimit(List<BudgetModel> all) {

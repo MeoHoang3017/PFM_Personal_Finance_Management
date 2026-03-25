@@ -28,7 +28,7 @@ class HomeTransactionItem extends StatelessWidget {
     final color = isIncome ? p.incomeColor : isExchange ? p.primaryAction : p.expenseColor;
     final title = transaction.description.isEmpty ? _defaultTitle() : transaction.description;
     final dateStr = '${transaction.date.day}/${transaction.date.month}/${transaction.date.year}';
-    final amountStr = formatCurrency(transaction.amount, suffix: transaction.currencySuffix);
+    final amountStr = formatCurrencyRows(transaction.amount, suffix: transaction.currencySuffix);
     final catIcon = iconForTransaction(transaction);
 
     final content = Padding(

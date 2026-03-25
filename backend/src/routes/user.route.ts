@@ -24,7 +24,7 @@ router.put('/change-password', changePassword);
 router.delete('/profile', deleteUser);
 
 // User management routes (can add admin check later)
-router.get('/list', getUserList);
+// router.get('/list', getUserList);
 router.get('/search', searchUsers);
 router.get('/:id', getUserById);
 

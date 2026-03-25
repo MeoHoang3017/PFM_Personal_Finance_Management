@@ -4,12 +4,60 @@
 /// Ngưỡng số chữ số: từ ngưỡng này trở lên sẽ dùng dạng thu gọn (K/M)
 const int kDefaultCompactThreshold = 7;
 
-/// Thu gọn số: >= 1e6 → "1.2M", >= 1e3 → "1.5K", còn lại giữ nguyên.
-String _compactValue(num value) {
+/// Khi [formatCurrency] được gọi với `compact: false`, vẫn có thể thu gọn nếu đủ dài
+/// trừ khi đặt ngưỡng rất lớn — dùng cho màn chi tiết cần đủ chữ số.
+const int kNoAutoCompactByLengthThreshold = 4096;
+
+String _trimTrailingFractionZeros(String coreWithPossibleDot) {
+  final dot = coreWithPossibleDot.lastIndexOf('.');
+  if (dot == -1) return coreWithPossibleDot;
+  final intPart = coreWithPossibleDot.substring(0, dot);
+  var frac = coreWithPossibleDot.substring(dot + 1).replaceFirst(RegExp(r'0+$'), '');
+  return frac.isEmpty ? intPart : '$intPart.$frac';
+}
+
+/// Thu gọn số: >= 1e6 → "1.2M", >= 1e3 → "1.5K"; phần hệ số tối đa [maxFractionDigits] chữ số thập phân.
+String _compactValue(num value, {int maxFractionDigits = 2}) {
   final abs = value.abs();
-  if (abs >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
-  if (abs >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
-  return value.toInt().toString();
+  final fd = maxFractionDigits.clamp(0, 2);
+  if (fd == 0) {
+    if (abs >= 1000000) return '${(value / 1000000).round()}M';
+    if (abs >= 1000) return '${(value / 1000).round()}K';
+    return formatNumberWithCommas(value, decimalDigits: 0);
+  }
+  if (abs >= 1000000) {
+    return '${_trimTrailingFractionZeros((value / 1000000).toStringAsFixed(fd))}M';
+  }
+  if (abs >= 1000) {
+    return '${_trimTrailingFractionZeros((value / 1000).toStringAsFixed(fd))}K';
+  }
+  return formatAmountForDisplay(value, maxFractionDigits: fd);
+}
+
+/// Số tiền đầy đủ: dấu phẩy nghìn, tối đa [maxFractionDigits] phần thập phân (bỏ số 0 thừa).
+String formatAmountForDisplay(num amount, {int maxFractionDigits = 2}) {
+  if (maxFractionDigits <= 0) {
+    return formatNumberWithCommas(amount, decimalDigits: 0);
+  }
+  var core = formatNumberWithCommas(amount, decimalDigits: maxFractionDigits);
+  final dot = core.lastIndexOf('.');
+  if (dot == -1) return core;
+  final intS = core.substring(0, dot);
+  var frac = core.substring(dot + 1).replaceFirst(RegExp(r'0+$'), '');
+  return frac.isEmpty ? intS : '$intS.$frac';
+}
+
+/// Hiển thị phần trăm (giá trị đã là 0–100), tối đa [maxFractionDigits] chữ sau dấu phẩy.
+String formatPercentageDisplay(
+  num percent, {
+  int maxFractionDigits = 2,
+  double maxClamp = 999,
+}) {
+  final v = percent.toDouble().clamp(0.0, maxClamp);
+  if (maxFractionDigits <= 0) {
+    return '${v.round()}%';
+  }
+  return '${_trimTrailingFractionZeros(v.toStringAsFixed(maxFractionDigits))}%';
 }
 
 /// Định dạng số với dấu phẩy nghìn (ví dụ: 1234567.89 → "1,234,567").
@@ -67,6 +115,7 @@ String formatCurrency(
   String? currencyCode,
   bool compact = false,
   int? compactThreshold,
+  int maxFractionDigits = 2,
 }) {
   final threshold = compactThreshold ?? kDefaultCompactThreshold;
   final digitCount = amount.abs().toInt().toString().length;
@@ -74,7 +123,42 @@ String formatCurrency(
   final resolvedSuffix = suffix ?? ' ${currencySymbolFromCode(currencyCode)}';
 
   if (useCompact) {
-    return _compactValue(amount) + resolvedSuffix;
+    return _compactValue(amount, maxFractionDigits: maxFractionDigits) + resolvedSuffix;
   }
-  return formatNumberWithCommas(amount) + resolvedSuffix;
+  return formatAmountForDisplay(amount, maxFractionDigits: maxFractionDigits) + resolvedSuffix;
+}
+
+/// Tiền dạng **tóm tắt** (header tổng quan, tổng thu/chi tháng, ví trong danh sách ngắn, biểu đồ):
+/// cho phép thu gọn K/M khi số dài — thống nhất trên Home và tab Giao dịch.
+String formatCurrencyAggregates(
+  num amount, {
+  String? suffix,
+  String? currencyCode,
+  int maxFractionDigits = 2,
+}) {
+  return formatCurrency(
+    amount,
+    suffix: suffix,
+    currencyCode: currencyCode,
+    compact: true,
+    maxFractionDigits: maxFractionDigits,
+  );
+}
+
+/// Tiền dạng **dòng chi tiết** (từng giao dịch, ngân sách đã chi / hạn mức, số dư ví ở màn danh sách đầy đủ):
+/// luôn đủ chữ số + dấu phẩy nghìn, không thu gọn (kể cả số rất lớn).
+String formatCurrencyRows(
+  num amount, {
+  String? suffix,
+  String? currencyCode,
+  int maxFractionDigits = 2,
+}) {
+  return formatCurrency(
+    amount,
+    suffix: suffix,
+    currencyCode: currencyCode,
+    compact: false,
+    compactThreshold: kNoAutoCompactByLengthThreshold,
+    maxFractionDigits: maxFractionDigits,
+  );
 }

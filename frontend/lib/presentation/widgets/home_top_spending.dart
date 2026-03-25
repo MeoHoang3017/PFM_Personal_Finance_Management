@@ -161,7 +161,7 @@ class _HomeTopSpendingState extends State<HomeTopSpending> {
                                   Padding(
                                     padding: const EdgeInsets.only(top: 2),
                                     child: Text(
-                                      '${pct.toStringAsFixed(1)}%',
+                                      formatPercentageDisplay(pct),
                                       style: TextStyle(color: p.subtitleText, fontSize: 13),
                                     ),
                                   ),
@@ -169,7 +169,7 @@ class _HomeTopSpendingState extends State<HomeTopSpending> {
                             ),
                           ),
                           Text(
-                            formatCurrency(item.amount, suffix: suffix),
+                            formatCurrencyRows(item.amount, suffix: suffix),
                             style: TextStyle(
                               color: p.expenseColor,
                               fontWeight: FontWeight.bold,

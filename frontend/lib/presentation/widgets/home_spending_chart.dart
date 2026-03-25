@@ -103,7 +103,7 @@ class _HomeSpendingChartState extends State<HomeSpendingChart> {
         ),
         const SizedBox(height: 16),
         Text(
-          '$label: ${formatCurrency(totalValue, suffix: suffix, compact: true)}',
+          '$label: ${formatCurrencyAggregates(totalValue, suffix: suffix)}',
           style: TextStyle(color: lineColor, fontSize: 17, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 20),
@@ -127,9 +127,8 @@ class _HomeSpendingChartState extends State<HomeSpendingChart> {
                     interval: (maxY - minY) / 4,
                     getTitlesWidget: (value, meta) {
                       if (value >= minY && value <= maxY) {
-                        final text = value == value.truncateToDouble()
-                            ? '${value.toInt()}'
-                            : value.toStringAsFixed(1);
+                        final text =
+                            formatAmountForDisplay(value, maxFractionDigits: 2);
                         return Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: Text(

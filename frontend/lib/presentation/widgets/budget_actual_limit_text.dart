@@ -24,7 +24,7 @@ class BudgetActualLimitText extends StatelessWidget {
   final double fontSize;
   final FontWeight fontWeight;
   final TextAlign textAlign;
-  /// `true` (mặc định): full width — dùng khi dòng actual/limit chiếm cả chiều ngang.
+  /// `true`: full width — dùng khi dòng actual/limit chiếm cả chiều ngang.
   /// `false`: shrink-wrap — dùng trong [Row] giống cột số tiền giao dịch.
   final bool expandWidth;
 
@@ -44,8 +44,12 @@ class BudgetActualLimitText extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = pfmPaletteOf(context);
     final accent = budgetSpentVsLimitAccent(p, spent, limit);
-    final actualStr = formatCurrency(spent, suffix: suffix, compact: compact);
-    final limitStr = formatCurrency(limit, suffix: suffix, compact: compact);
+    final actualStr = compact
+        ? formatCurrencyAggregates(spent, suffix: suffix)
+        : formatCurrencyRows(spent, suffix: suffix);
+    final limitStr = compact
+        ? formatCurrencyAggregates(limit, suffix: suffix)
+        : formatCurrencyRows(limit, suffix: suffix);
     final slashSize = (fontSize * 0.82).clamp(12.0, 16.0);
     final rich = Text.rich(
       TextSpan(

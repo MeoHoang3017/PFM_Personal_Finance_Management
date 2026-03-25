@@ -81,7 +81,7 @@ class _BudgetAtRiskTile extends StatelessWidget {
     final name = budget.categoryName?.isNotEmpty == true
         ? budget.categoryName!
         : context.tr('budget_category_fallback');
-    final suffix = ' ${currencySymbolFromCode(budget.currency)}';
+    final suffix = budget.currencySuffix;
 
     return Material(
       color: Colors.transparent,
@@ -153,7 +153,7 @@ class _BudgetAtRiskTile extends StatelessWidget {
                           Padding(
                             padding: const EdgeInsets.only(left: 6),
                             child: Text(
-                              '${(ratio * 100).clamp(0, 999).toStringAsFixed(0)}%',
+                              formatPercentageDisplay((ratio * 100).clamp(0, 999)),
                               style: TextStyle(color: barColor, fontWeight: FontWeight.w500, fontSize: 13),
                             ),
                           ),

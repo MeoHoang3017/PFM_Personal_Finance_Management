@@ -38,14 +38,26 @@ class _SplashScreenState extends State<SplashScreen> {
           ? const Color(0xFF0F172A)
           : const Color(0xFFF1F5F9),
       body: Center(
-        child: Text(
-          'Quản lý tài chính',
-          style: TextStyle(
-            fontSize: 40,
-            fontWeight: FontWeight.bold,
-            fontStyle: FontStyle.italic,
-            color: isDark ? Colors.white : Colors.black,
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.eco,
+              size: 90,
+              color: isDark ? Colors.white : Colors.black,
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'FinTracker',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 40,
+                fontWeight: FontWeight.bold,
+                fontStyle: FontStyle.italic,
+                color: isDark ? Colors.white : Colors.black,
+              ),
+            ),
+          ],
         ),
       ),
     );

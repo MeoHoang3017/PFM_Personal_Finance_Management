@@ -28,7 +28,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
   List<TransactionModel> _items = [];
   bool _loading = true;
   String? _error;
-  String get _summarySuffix => ' ${currencySymbolFromCode(widget.budget.currency)}';
+  String get _summarySuffix => widget.budget.currencySuffix;
 
   @override
   void initState() {
@@ -95,6 +95,8 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
     final spent = b.spentAmount ?? 0.0;
     final limit = b.amount;
     final progress = limit > 0 ? (spent / limit) : 0.0;
+    final cardPercentLabel =
+        limit > 0 ? formatPercentageDisplay(spent / limit * 100) : '—';
     final isOver = limit > 0 && spent > limit;
     final categoryLabel = title;
 
@@ -175,6 +177,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 16),
+                  // Chi tiết: một dòng đã chi / hạn mức, số đầy đủ (không thu gọn K/M).
                   BudgetActualLimitText(
                     spent: spent,
                     limit: limit,
@@ -204,7 +207,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                           style: TextStyle(color: p.subtitleText, fontSize: 12, fontWeight: FontWeight.w500),
                         ),
                         Text(
-                          '${(progress * 100).clamp(0.0, 999.0).toStringAsFixed(0)}%',
+                          cardPercentLabel,
                           style: TextStyle(
                             color: budgetSpentVsLimitAccent(p, spent, limit),
                             fontSize: 12,
@@ -289,44 +292,90 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
                               itemBuilder: (context, index) {
                                 final t = _items[index];
                                 final dateStr = '${t.date.day}/${t.date.month}/${t.date.year}';
+                                final linePctLabel =
+                                    limit > 0 ? formatPercentageDisplay(t.amount / limit * 100) : '—';
                                 return SectionCard(
                                   margin: EdgeInsets.zero,
                                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
-                                    children: [
-                                      Container(
-                                        width: 44,
-                                        height: 44,
-                                        decoration: BoxDecoration(
-                                          color: p.expenseColor.withValues(alpha: 0.12),
-                                          borderRadius: BorderRadius.circular(12),
-                                        ),
-                                        child: Icon(iconForTransaction(t), color: p.expenseColor, size: 22),
-                                      ),
-                                      const SizedBox(width: 14),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              t.description.isEmpty ? context.tr('no_description') : t.description,
-                                              style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600, fontSize: 15),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
+                                  child: LayoutBuilder(
+                                    builder: (context, cardConstraints) {
+                                      const iconGap = 44.0 + 14.0;
+                                      final reserved = iconGap + 8.0;
+                                      final remaining =
+                                          (cardConstraints.maxWidth - reserved).clamp(120.0, cardConstraints.maxWidth);
+                                      final pctColMax = (remaining * 0.28).clamp(56.0, 120.0);
+                                      return Column(
+                                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Row(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Container(
+                                                width: 44,
+                                                height: 44,
+                                                decoration: BoxDecoration(
+                                                  color: p.expenseColor.withValues(alpha: 0.12),
+                                                  borderRadius: BorderRadius.circular(12),
+                                                ),
+                                                child: Icon(iconForTransaction(t), color: p.expenseColor, size: 22),
+                                              ),
+                                              const SizedBox(width: 14),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Text(
+                                                      t.description.isEmpty ? context.tr('no_description') : t.description,
+                                                      style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w600, fontSize: 15),
+                                                      maxLines: 2,
+                                                      overflow: TextOverflow.ellipsis,
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(dateStr, style: TextStyle(color: p.subtitleText, fontSize: 12)),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              SizedBox(
+                                                width: pctColMax,
+                                                child: Text(
+                                                  linePctLabel,
+                                                  style: TextStyle(
+                                                    color: p.subtitleText,
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.w700,
+                                                    height: 1.1,
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  textAlign: TextAlign.end,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.only(left: iconGap, top: 0),
+                                            child: Align(
+                                              alignment: Alignment.centerRight,
+                                              child: Text(
+                                                formatCurrencyRows(t.amount, suffix: t.currencySuffix),
+                                                style: TextStyle(
+                                                  color: p.expenseColor,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 16,
+                                                  height: 1.2,
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                textAlign: TextAlign.end,
+                                              ),
                                             ),
-                                            const SizedBox(height: 4),
-                                            Text(dateStr, style: TextStyle(color: p.subtitleText, fontSize: 12)),
-                                          ],
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Text(
-                                        formatCurrency(t.amount, suffix: t.currencySuffix),
-                                        style: TextStyle(color: p.expenseColor, fontWeight: FontWeight.bold, fontSize: 15),
-                                      ),
-                                    ],
+                                          ),
+                                        ],
+                                      );
+                                    },
                                   ),
                                 );
                               },

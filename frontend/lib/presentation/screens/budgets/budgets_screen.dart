@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/theme/theme_palette.dart';
 import '../../../core/utils/app_toast.dart';
-import '../../../core/utils/currency_format.dart';
 import '../../../data/models/budget_models.dart';
 import '../../../data/services/budget_service.dart';
 import '../../widgets/budget_actual_limit_text.dart';
@@ -237,7 +236,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                                         final progress = limit > 0 ? (spent / limit).clamp(0.0, 1.0) : 0.0;
                                         final periodStr = '${b.startDate.day}/${b.startDate.month} – ${b.endDate.day}/${b.endDate.month}';
                                         final categoryLabel = b.categoryName?.isNotEmpty == true ? b.categoryName! : context.tr('budget_category_fallback');
-                                        final suffix = ' ${currencySymbolFromCode(b.currency)}';
+                                        final suffix = b.currencySuffix;
                                         final metaParts = <String>[
                                           if (!b.isActive) context.tr('inactive'),
                                           _periodLabel(context, b.period),

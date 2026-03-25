@@ -1,3 +1,4 @@
+import '../../core/utils/currency_format.dart';
 import 'pagination.dart';
 
 /// 1 tuần / 1 tháng / 1 năm (cửa sổ lịch) hoặc khoảng tùy chọn.
@@ -56,6 +57,9 @@ class BudgetModel {
   final bool? isOverBudget;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+
+  /// Cùng quy ước [TransactionModel.currencySuffix]: khoảng trắng + ký hiệu từ mã ISO.
+  String get currencySuffix => ' ${currencySymbolFromCode(currency)}';
 
   BudgetModel({
     required this.id,

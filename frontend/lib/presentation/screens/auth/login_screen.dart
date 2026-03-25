@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +13,9 @@ import '../../../core/theme/app_palette_light.dart';
 import '../../../data/models/auth_models.dart';
 import '../../../data/services/api_health_service.dart';
 import '../../../data/services/auth_service.dart';
+
+import '../../widgets/web_google_sign_in_button_stub.dart'
+    if (dart.library.html) '../../widgets/web_google_sign_in_button_web.dart';
 
 /// Đăng nhập — giao diện lấy FinTracker làm gốc: nút back, tiêu đề, input chỉ viền (border 16), nút đen/trắng, Remember me, Quên mật khẩu, OR, Google, link Đăng ký.
 class LoginScreen extends StatefulWidget {
@@ -29,13 +34,38 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _errorMessage;
   bool? _backendConnected;
   bool _webGoogleCredentialSent = false;
+  StreamSubscription<GoogleSignInAuthenticationEvent>? _webGoogleSub;
+  bool _webGoogleReady = !kIsWeb;
+  String? _webGoogleInitError;
 
   @override
   void initState() {
     super.initState();
     _checkBackend();
     if (kIsWeb) {
-      getIt<AuthService>().ensureGoogleSignInInitialized();
+      _webGoogleSub = GoogleSignIn.instance.authenticationEvents.listen(
+        (event) {
+          unawaited(_onWebGoogleSignInEvent(event));
+        },
+      );
+      unawaited(_initWebGoogleSignIn());
+    }
+  }
+
+  Future<void> _initWebGoogleSignIn() async {
+    try {
+      await getIt<AuthService>().ensureGoogleSignInInitialized();
+      if (!mounted) return;
+      setState(() {
+        _webGoogleReady = true;
+        _webGoogleInitError = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _webGoogleReady = false;
+        _webGoogleInitError = e.toString();
+      });
     }
   }
 
@@ -46,6 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    _webGoogleSub?.cancel();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -156,22 +187,32 @@ class _LoginScreenState extends State<LoginScreen> {
     return SizedBox(
       width: double.infinity,
       height: 56,
-      // Tạm thời: hiển thị thông báo, Google Sign-In web sẽ dùng sau.
       child: _buildWebGoogleSignInButton(),
     );
   }
 
   Widget _buildWebGoogleSignInButton() {
-    // Tránh lỗi compile web với thư viện chuyên biệt; có thể thay bằng GIS renderButton sau.
-    return OutlinedButton.icon(
-      onPressed: null,
-      icon: const Icon(Icons.g_mobiledata, size: 28),
-      label: Text(
-        'Google Sign-In web đang được cấu hình, tạm thời hãy dùng email/mật khẩu.',
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 12),
-      ),
-    );
+    if (!_webGoogleReady) {
+      if (_webGoogleInitError != null) {
+        return OutlinedButton.icon(
+          onPressed: null,
+          icon: const Icon(Icons.error_outline),
+          label: Text(
+            'Google Sign-In chưa sẵn sàng. Kiểm tra GOOGLE_CLIENT_ID / GOOGLE_SERVER_CLIENT_ID và web/index.html',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12),
+          ),
+        );
+      }
+      return const Center(
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+    return buildWebGoogleSignInButton();
   }
 
   Widget _buildNonWebGoogleButton(bool isDark) {

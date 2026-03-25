@@ -168,7 +168,7 @@ class _WalletsScreenState extends State<WalletsScreen> {
                                           child: Icon(Icons.account_balance_wallet_outlined, color: p.primaryAction, size: 20),
                                         ),
                                         title: Text(w.name, style: TextStyle(color: p.primaryText, fontWeight: FontWeight.w500)),
-                                        subtitle: Text(formatCurrency(w.balance, suffix: w.currencySuffix), style: TextStyle(color: p.subtitleText, fontSize: 13)),
+                                        subtitle: Text(formatCurrencyRows(w.balance, suffix: w.currencySuffix), style: TextStyle(color: p.subtitleText, fontSize: 13)),
                                         trailing: PopupMenuButton<String>(
                                           icon: Icon(Icons.more_vert, color: p.iconMuted),
                                           onSelected: (v) {

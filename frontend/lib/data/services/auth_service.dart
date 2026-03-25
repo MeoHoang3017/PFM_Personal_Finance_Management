@@ -24,10 +24,21 @@ class AuthService {
   GoogleSignIn get googleSignIn => GoogleSignIn.instance;
 
   Future<void> _ensureGoogleSignInInitialized() async {
-    _googleSignInInit ??= GoogleSignIn.instance.initialize(
-      clientId: AppConstants.googleClientId.isEmpty ? null : AppConstants.googleClientId,
-      serverClientId: AppConstants.googleServerClientId,
-    );
+    _googleSignInInit ??= () {
+      final clientId = AppConstants.googleClientId.isEmpty
+          ? null
+          : AppConstants.googleClientId;
+      if (kIsWeb) {
+        // google_sign_in_web không hỗ trợ serverClientId.
+        return GoogleSignIn.instance.initialize(
+          clientId: clientId,
+        );
+      }
+      return GoogleSignIn.instance.initialize(
+        clientId: clientId,
+        serverClientId: AppConstants.googleServerClientId,
+      );
+    }();
     await _googleSignInInit;
   }
 

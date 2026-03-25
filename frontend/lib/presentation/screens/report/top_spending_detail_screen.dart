@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/di/injection.dart';
 import '../../../core/theme/theme_palette.dart';
 import '../../../core/utils/category_spending.dart';
+import '../../../core/utils/currency_format.dart';
 import '../../../core/utils/monthly_report_helper.dart';
 import '../../../data/models/transaction_models.dart';
 import '../../../data/services/transaction_service.dart';
@@ -258,7 +259,7 @@ class _TopSpendingDetailScreenState extends State<TopSpendingDetailScreen>
                                 Padding(
                                   padding: const EdgeInsets.only(top: 2),
                                   child: Text(
-                                    '${item.percentage.toStringAsFixed(1)}% · ${item.amountFormatted}',
+                                    '${formatPercentageDisplay(item.percentage)} · ${item.amountFormatted}',
                                     style: TextStyle(color: p.subtitleText, fontSize: 13),
                                   ),
                                 ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/di/injection.dart';
 import '../../../core/theme/theme_palette.dart';
+import '../../../core/utils/category_icon.dart';
 import '../../../core/utils/currency_format.dart';
 import '../../../core/utils/monthly_report_helper.dart';
 import '../../../data/models/transaction_models.dart';
@@ -162,7 +163,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 child: _IncomeExpenseCard(
                   isIncome: true,
                   label: 'Tổng thu',
-                  value: formatCurrency(
+                  value: formatCurrencyAggregates(
                     monthData.totalIncome,
                     suffix: _transactions.isNotEmpty ? _transactions.first.currencySuffix : null,
                   ),
@@ -175,7 +176,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen>
                 child: _IncomeExpenseCard(
                   isIncome: false,
                   label: 'Tổng chi',
-                  value: formatCurrency(
+                  value: formatCurrencyAggregates(
                     monthData.totalExpense,
                     suffix: _transactions.isNotEmpty ? _transactions.first.currencySuffix : null,
                   ),
@@ -378,7 +379,7 @@ class _TransactionDetailSheet extends StatelessWidget {
                   radius: 28,
                   backgroundColor: color.withValues(alpha: 0.2),
                   child: Icon(
-                    isIncome ? Icons.arrow_downward : isExchange ? Icons.swap_horiz : Icons.arrow_upward,
+                    iconForTransaction(transaction),
                     color: color,
                     size: 28,
                   ),
@@ -415,7 +416,7 @@ class _TransactionDetailSheet extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${isExchange ? '' : isIncome ? '+' : '-'}${formatCurrency(transaction.amount, suffix: transaction.currencySuffix)}',
+                  formatCurrencyRows(transaction.amount, suffix: transaction.currencySuffix),
                   style: TextStyle(
                     color: color,
                     fontWeight: FontWeight.bold,

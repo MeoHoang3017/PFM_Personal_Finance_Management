@@ -25,7 +25,7 @@ class GetStartedScreen extends StatelessWidget {
             children: [
               const Spacer(flex: 2),
               Icon(
-                Icons.account_balance_wallet_rounded,
+                Icons.eco,
                 size: 120,
                 color: isDark ? p.primaryAction : PaletteLight.primaryAction,
               ),

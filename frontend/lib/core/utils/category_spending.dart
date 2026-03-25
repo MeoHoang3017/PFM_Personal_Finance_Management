@@ -49,7 +49,7 @@ final Map<String, (IconData, Color)> _categoryStyle = {
 }
 
 String _formatAmount(double value, {String? suffix}) =>
-    formatCurrency(value, suffix: suffix, compact: true);
+    formatCurrencyRows(value, suffix: suffix);
 
 /// Tính Top Spending theo category từ danh sách giao dịch (chỉ giao dịch chi).
 /// [periodMonth], [periodYear]: nếu truyền thì chỉ lấy giao dịch trong tháng đó.
