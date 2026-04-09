@@ -45,5 +45,17 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Google Sign-In: URL scheme = reversed Web Client ID (đổi nếu đổi GOOGLE_SERVER_CLIENT_ID) -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.371279773491-v0q45qucn22adg7j4907jdh6ig44oug4</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

@@ -1,0 +1,83 @@
+Budget:
+  type: object
+  properties:
+    id:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+    amount:
+      type: number
+      example: 1000
+    category:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+    period:
+      type: string
+      enum: [daily, weekly, monthly, yearly]
+      example: monthly
+    startDate:
+      type: string
+      format: date-time
+    endDate:
+      type: string
+      format: date-time
+    user:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+    isActive:
+      type: boolean
+      example: true
+    createdAt:
+      type: string
+      format: date-time
+    updatedAt:
+      type: string
+      format: date-time
+
+CreateBudgetRequest:
+  type: object
+  required: [amount, category, period, startDate, endDate]
+  properties:
+    amount:
+      type: number
+      minimum: 0
+      example: 1000
+    category:
+      type: string
+      example: "507f1f77bcf86cd799439011"
+    period:
+      type: string
+      enum: [daily, weekly, monthly, yearly]
+      example: monthly
+    startDate:
+      type: string
+      format: date-time
+      example: "2024-01-01T00:00:00Z"
+    endDate:
+      type: string
+      format: date-time
+      example: "2024-01-31T23:59:59Z"
+    isActive:
+      type: boolean
+      default: true
+      example: true
+
+UpdateBudgetRequest:
+  type: object
+  properties:
+    amount:
+      type: number
+      minimum: 0
+    category:
+      type: string
+    period:
+      type: string
+      enum: [daily, weekly, monthly, yearly]
+    startDate:
+      type: string
+      format: date-time
+    endDate:
+      type: string
+      format: date-time
+    isActive:
+      type: boolean
+
